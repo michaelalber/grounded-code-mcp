@@ -1,4 +1,4 @@
-# rounded-code-mcp
+# grounded-code-mcp
 
 ## Philosophy
 LLMs are sophisticated pattern matchers, not reasoning engines. This project mitigates known failure modes (hallucination, brittle compositionality, lack of grounding) by anchoring AI coding assistants to vetted, authoritative documentation via RAG.
