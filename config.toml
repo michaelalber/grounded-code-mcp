@@ -1,0 +1,43 @@
+# grounded-code-mcp configuration file
+
+[knowledge_base]
+# Directory containing source documents organized by collection
+sources_dir = "sources"
+# Directory for storing data (vector DB, manifest, etc.)
+data_dir = ".grounded-code-mcp"
+# Manifest file name (stored in data_dir)
+manifest_file = "manifest.json"
+
+[ollama]
+# Embedding model - mxbai-embed-large has top MTEB scores
+model = "mxbai-embed-large"
+# Ollama server host
+host = "http://localhost:11434"
+# Embedding dimensions (mxbai-embed-large = 1024)
+embedding_dim = 1024
+
+[chunking]
+# Text chunk size in characters
+text_chunk_size = 1000
+# Maximum text chunk size
+text_chunk_max_size = 1500
+# Overlap between text chunks
+text_chunk_overlap = 200
+# Maximum code chunk size before splitting on function boundaries
+max_code_chunk_size = 3000
+
+[vectorstore]
+# Provider: "qdrant" (primary) or "chromadb" (fallback)
+provider = "qdrant"
+# Prefix for collection names
+collection_prefix = "grounded_"
+
+# Collection mappings from source directories
+[collections]
+"sources/dotnet" = "dotnet_csharp"
+"sources/python" = "python"
+"sources/php" = "php_laravel"
+"sources/patterns" = "patterns"
+"sources/databases" = "databases"
+"sources/edge-ai" = "edge_ai"
+"sources/internal" = "internal"
