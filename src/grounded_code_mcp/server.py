@@ -40,7 +40,8 @@ def get_settings() -> Settings:
     """Get the current settings, initializing if needed."""
     if _settings is None:
         initialize()
-    assert _settings is not None
+    if _settings is None:
+        raise RuntimeError("Failed to initialize settings")
     return _settings
 
 
@@ -48,7 +49,8 @@ def get_embedder() -> EmbeddingClient:
     """Get the embedding client, initializing if needed."""
     if _embedder is None:
         initialize()
-    assert _embedder is not None
+    if _embedder is None:
+        raise RuntimeError("Failed to initialize embedder")
     return _embedder
 
 
@@ -56,7 +58,8 @@ def get_manifest() -> Manifest:
     """Get the manifest, initializing if needed."""
     if _manifest is None:
         initialize()
-    assert _manifest is not None
+    if _manifest is None:
+        raise RuntimeError("Failed to initialize manifest")
     return _manifest
 
 
