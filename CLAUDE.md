@@ -96,6 +96,22 @@ src/grounded_code_mcp/
 - Incremental ingestion (only re-process changed files)
 - Chunk IDs tracked for targeted deletion on re-ingestion
 
+### Security-by-Design
+- Validate all inputs at system boundaries
+- Sanitize filenames (remove path traversal, special chars)
+- Validate file extensions: `.pdf`, `.epub`, `.md`, `.txt`, `.rst`, `.html`
+- Verify MIME type via magic bytes or UTF-8 validation
+- Max size: 100MB (configurable)
+- Store uploads outside web root
+- Follow OWASP guidelines for file handling, auth, and data protection
+
+### YAGNI Principle
+- No abstract interfaces until needed (Rule of Three)
+- No repository pattern - direct JSON read/write
+- No dependency injection containers
+- No plugin architecture - simple match/case on file extension
+- Add abstractions only when necessary
+
 ## Configuration
 
 Default config in `config.toml`. Settings can be customized:
