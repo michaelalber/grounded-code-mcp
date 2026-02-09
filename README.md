@@ -170,6 +170,39 @@ bandit -r src/ -c pyproject.toml
 - **CLI:** Click + Rich
 - **Testing:** pytest
 
+## Security
+
+- File type validation (PDF, DOCX, PPTX, HTML, Markdown, AsciiDoc, EPUB)
+- MIME type verification via magic bytes or UTF-8 validation
+- File size limits (100MB default, configurable)
+- Filename sanitization (path traversal prevention, special chars removed)
+- All inputs validated at system boundaries
+
+## Troubleshooting
+
+**Ollama Connection Error:**
+- Ensure Ollama is running: `ollama serve` or `systemctl --user start ollama`
+- Check the embedding model is pulled: `ollama list`
+- Verify Ollama is on port 11434: `curl http://localhost:11434/api/tags`
+
+**Ingestion Failures:**
+- Check file format is supported
+- Ensure sufficient disk space for vector store
+- Use `--force` flag to re-ingest: `grounded-code-mcp ingest --force`
+
+**Search Returns No Results:**
+- Verify documents were ingested: `grounded-code-mcp status`
+- Try lowering `--min-score` threshold
+- Check collection name matches: `grounded-code-mcp search "query" --collection NAME`
+
+**MCP Server Connection Issues:**
+- Verify the server starts: `grounded-code-mcp serve --debug`
+- Check client MCP configuration points to correct transport
+
+## Contributing
+
+This is a personal/educational project, but suggestions and feedback are welcome via issues.
+
 ## Author
 
 [Michael K Alber](https://github.com/michaelalber)
