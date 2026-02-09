@@ -237,9 +237,7 @@ class TestServerTools:
         assert results[0]["name"] == "grounded_python"
         assert results[0]["chunk_count"] == 10
 
-    def test_list_sources(
-        self, settings: Settings, mock_manifest: Manifest
-    ) -> None:
+    def test_list_sources(self, settings: Settings, mock_manifest: Manifest) -> None:
         """Test list_sources tool."""
         with (
             patch("grounded_code_mcp.server._settings", settings),
@@ -263,9 +261,7 @@ class TestServerTools:
 
         assert len(results) == 1
 
-    def test_get_source_info(
-        self, settings: Settings, mock_manifest: Manifest
-    ) -> None:
+    def test_get_source_info(self, settings: Settings, mock_manifest: Manifest) -> None:
         """Test get_source_info tool."""
         with (
             patch("grounded_code_mcp.server._settings", settings),
@@ -277,9 +273,7 @@ class TestServerTools:
         assert result["title"] == "Test Document"
         assert result["chunk_count"] == 5
 
-    def test_get_source_info_not_found(
-        self, settings: Settings, mock_manifest: Manifest
-    ) -> None:
+    def test_get_source_info_not_found(self, settings: Settings, mock_manifest: Manifest) -> None:
         """Test get_source_info with nonexistent source."""
         with (
             patch("grounded_code_mcp.server._settings", settings),

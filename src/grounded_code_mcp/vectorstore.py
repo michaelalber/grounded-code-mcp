@@ -248,8 +248,7 @@ class QdrantStore(VectorStore):
         query_filter = None
         if filter_metadata:
             conditions = [
-                FieldCondition(key=k, match=MatchValue(value=v))
-                for k, v in filter_metadata.items()
+                FieldCondition(key=k, match=MatchValue(value=v)) for k, v in filter_metadata.items()
             ]
             query_filter = Filter(must=conditions)  # type: ignore[arg-type]
 

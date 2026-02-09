@@ -255,21 +255,9 @@ class TestManifest:
     def test_stats(self) -> None:
         """Test manifest statistics."""
         manifest = Manifest()
-        manifest.add_entry(
-            SourceEntry(
-                path="a.md", sha256="a", collection="python", chunk_count=5
-            )
-        )
-        manifest.add_entry(
-            SourceEntry(
-                path="b.md", sha256="b", collection="python", chunk_count=3
-            )
-        )
-        manifest.add_entry(
-            SourceEntry(
-                path="c.md", sha256="c", collection="dotnet", chunk_count=7
-            )
-        )
+        manifest.add_entry(SourceEntry(path="a.md", sha256="a", collection="python", chunk_count=5))
+        manifest.add_entry(SourceEntry(path="b.md", sha256="b", collection="python", chunk_count=3))
+        manifest.add_entry(SourceEntry(path="c.md", sha256="c", collection="dotnet", chunk_count=7))
 
         stats = manifest.stats()
 

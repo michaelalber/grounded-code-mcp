@@ -68,9 +68,7 @@ class TestEmbeddingClient:
         client = EmbeddingClient(model="mxbai-embed-large")
 
         mock_ollama = MagicMock()
-        mock_ollama.list.return_value = {
-            "models": [{"name": "mxbai-embed-large:latest"}]
-        }
+        mock_ollama.list.return_value = {"models": [{"name": "mxbai-embed-large:latest"}]}
 
         with patch.object(client, "_client", mock_ollama):
             result = client.health_check()
@@ -150,9 +148,7 @@ class TestEmbeddingClient:
         client = EmbeddingClient(model="test-model")
 
         mock_ollama = MagicMock()
-        mock_ollama.embed.return_value = {
-            "embeddings": [[0.1, 0.2, 0.3, 0.4, 0.5]]
-        }
+        mock_ollama.embed.return_value = {"embeddings": [[0.1, 0.2, 0.3, 0.4, 0.5]]}
 
         with patch.object(client, "_client", mock_ollama):
             result = client.embed("test text")
@@ -180,9 +176,7 @@ class TestEmbeddingClient:
         client = EmbeddingClient(model="test-model")
 
         mock_ollama = MagicMock()
-        mock_ollama.embed.return_value = {
-            "embeddings": [[0.1, 0.2], [0.3, 0.4], [0.5, 0.6]]
-        }
+        mock_ollama.embed.return_value = {"embeddings": [[0.1, 0.2], [0.3, 0.4], [0.5, 0.6]]}
 
         texts = ["text1", "text2", "text3"]
 
@@ -225,9 +219,7 @@ class TestEmbeddingClient:
         client = EmbeddingClient(model="test-model")
 
         mock_ollama = MagicMock()
-        mock_ollama.embed.return_value = {
-            "embeddings": [[0.0] * 1024]
-        }
+        mock_ollama.embed.return_value = {"embeddings": [[0.0] * 1024]}
 
         with patch.object(client, "_client", mock_ollama):
             dims = client.get_embedding_dimensions()

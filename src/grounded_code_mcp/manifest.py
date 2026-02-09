@@ -164,9 +164,7 @@ class Manifest(BaseModel):
         Returns:
             List of SourceEntry objects in the collection.
         """
-        return [
-            entry for entry in self.sources.values() if entry.collection == collection
-        ]
+        return [entry for entry in self.sources.values() if entry.collection == collection]
 
     def save(self, path: Path) -> None:
         """Save manifest to a JSON file.

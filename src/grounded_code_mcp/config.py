@@ -98,10 +98,12 @@ class Settings(BaseModel):
         if config_path:
             search_paths.append(config_path)
 
-        search_paths.extend([
-            Path.cwd() / "config.toml",
-            Path.home() / ".config" / "grounded-code-mcp" / "config.toml",
-        ])
+        search_paths.extend(
+            [
+                Path.cwd() / "config.toml",
+                Path.home() / ".config" / "grounded-code-mcp" / "config.toml",
+            ]
+        )
 
         for path in search_paths:
             if path.exists():

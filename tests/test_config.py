@@ -92,9 +92,7 @@ class TestSettings:
         with pytest.raises(FileNotFoundError):
             Settings.from_toml(temp_dir / "nonexistent.toml")
 
-    def test_load_with_explicit_path(
-        self, temp_dir: Path, sample_config_toml: str
-    ) -> None:
+    def test_load_with_explicit_path(self, temp_dir: Path, sample_config_toml: str) -> None:
         """Test load() with explicit path."""
         config_path = temp_dir / "myconfig.toml"
         config_path.write_text(sample_config_toml)

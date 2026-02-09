@@ -116,9 +116,7 @@ class ChunkingContext:
             text: Heading text.
         """
         # Remove headings at same or lower level
-        self.heading_stack = [
-            (lvl, txt) for lvl, txt in self.heading_stack if lvl < level
-        ]
+        self.heading_stack = [(lvl, txt) for lvl, txt in self.heading_stack if lvl < level]
         self.heading_stack.append((level, text))
 
     def get_heading_context(self) -> list[str]:
@@ -237,23 +235,27 @@ class DocumentChunker:
 
         # Code blocks
         for match in CODE_BLOCK_PATTERN.finditer(content):
-            special_blocks.append((
-                match.start(),
-                match.end(),
-                "code",
-                match.group(1) or None,  # language
-                match.group(2),  # code content
-            ))
+            special_blocks.append(
+                (
+                    match.start(),
+                    match.end(),
+                    "code",
+                    match.group(1) or None,  # language
+                    match.group(2),  # code content
+                )
+            )
 
         # Tables
         for match in TABLE_PATTERN.finditer(content):
-            special_blocks.append((
-                match.start(),
-                match.end(),
-                "table",
-                None,
-                match.group(0),
-            ))
+            special_blocks.append(
+                (
+                    match.start(),
+                    match.end(),
+                    "table",
+                    None,
+                    match.group(0),
+                )
+            )
 
         # Sort by start position
         special_blocks.sort(key=lambda x: x[0])
@@ -264,32 +266,38 @@ class DocumentChunker:
             if start > last_end:
                 text = content[last_end:start]
                 if text.strip():
-                    segments.append({
-                        "type": "text",
-                        "content": text,
-                        "start": last_end,
-                        "language": None,
-                    })
+                    segments.append(
+                        {
+                            "type": "text",
+                            "content": text,
+                            "start": last_end,
+                            "language": None,
+                        }
+                    )
 
             # Add the special block
-            segments.append({
-                "type": block_type,
-                "content": block_content,
-                "start": start,
-                "language": lang,
-            })
+            segments.append(
+                {
+                    "type": block_type,
+                    "content": block_content,
+                    "start": start,
+                    "language": lang,
+                }
+            )
             last_end = end
 
         # Add remaining text
         if last_end < len(content):
             text = content[last_end:]
             if text.strip():
-                segments.append({
-                    "type": "text",
-                    "content": text,
-                    "start": last_end,
-                    "language": None,
-                })
+                segments.append(
+                    {
+                        "type": "text",
+                        "content": text,
+                        "start": last_end,
+                        "language": None,
+                    }
+                )
 
         return segments
 
@@ -527,10 +535,7 @@ class DocumentChunker:
                 ctx.update_headings(level, heading_text)
 
             # If adding this paragraph exceeds max size, flush current chunk
-            if (
-                current_chunk
-                and len(current_chunk) + len(para) + 2 > self.text_chunk_max_size
-            ):
+            if current_chunk and len(current_chunk) + len(para) + 2 > self.text_chunk_max_size:
                 chunks.append(
                     Chunk(
                         chunk_id=ctx.next_chunk_id(),

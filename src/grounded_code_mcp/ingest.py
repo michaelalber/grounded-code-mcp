@@ -144,10 +144,7 @@ class IngestionPipeline:
         self.manifest.save(self.settings.knowledge_base.manifest_path)
 
         # Compute chunk stats
-        stats.chunks_created = sum(
-            entry.chunk_count
-            for entry in self.manifest.sources.values()
-        )
+        stats.chunks_created = sum(entry.chunk_count for entry in self.manifest.sources.values())
 
         logger.info(
             "Ingestion complete: %d ingested, %d skipped, %d failed",

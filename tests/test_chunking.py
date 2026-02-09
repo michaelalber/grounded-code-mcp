@@ -204,9 +204,7 @@ Content in section two.
         result = chunker.chunk(content, "test.md")
 
         # Find chunks with section content
-        section_two_chunks = [
-            c for c in result if "section two" in c.content.lower()
-        ]
+        section_two_chunks = [c for c in result if "section two" in c.content.lower()]
         if section_two_chunks:
             # Should have heading context
             assert len(section_two_chunks[0].heading_context) > 0
