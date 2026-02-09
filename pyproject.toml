@@ -75,9 +75,6 @@ select = [
     "SIM",    # flake8-simplify
     "RUF",    # Ruff-specific rules
 ]
-ignore = [
-    "S101",   # Use of assert (needed for tests)
-]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = ["S101"]
@@ -95,7 +92,12 @@ exclude_dirs = ["tests", ".venv"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 addopts = "-v --tb=short"
+markers = [
+    "integration: integration tests requiring external services",
+    "slow: tests that take a long time to run",
+]
 
 [tool.coverage.run]
 source = ["src/grounded_code_mcp"]
