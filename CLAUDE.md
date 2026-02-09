@@ -14,7 +14,7 @@ This project addresses LLM limitations (hallucination, brittle compositionality,
 - Ground responses in curated knowledge base content
 - Treat AI output as requiring human review
 - Use structured outputs with validation
-- Pair with TDD workflows
+- Three pillars: **TDD**, **Security by Design**, **YAGNI**
 
 ## Tech Stack
 
@@ -74,6 +74,49 @@ src/grounded_code_mcp/
 ├── vectorstore.py   # Qdrant/ChromaDB abstraction
 ├── ingest.py        # Ingestion pipeline orchestrator
 └── server.py        # FastMCP server with MCP tools
+```
+
+## Development Principles
+
+### TDD is Mandatory
+1. **Never write production code without a failing test first**
+2. Cycle: RED (write failing test) → GREEN (minimal code to pass) → REFACTOR
+3. Run tests before committing: `pytest`
+4. Coverage target: 80% minimum for business logic, 95% for security-critical code
+
+### Code Standards
+- Type hints on all signatures
+- Google-style docstrings for public methods
+- Arrange-Act-Assert test pattern
+- `pathlib.Path` over string paths
+- Specific exceptions, never bare `except:`
+- Async for I/O-bound operations
+
+### Quality Gates
+- **Cyclomatic Complexity**: Methods <10, classes <20
+- **Code Coverage**: 80% minimum for business logic, 95% for security-critical code
+- **Maintainability Index**: Target 70+
+- **Code Duplication**: Maximum 3%
+
+### Git Workflow
+- Commit after each GREEN phase
+- Commit message format: `feat|fix|test|refactor: brief description`
+- Don't commit failing tests (RED phase is local only)
+
+### Testing Patterns
+
+```python
+# Arrange-Act-Assert pattern
+def test_search_returns_relevant_chunks(vector_store, sample_chunks):
+    # Arrange
+    vector_store.add(sample_chunks)
+
+    # Act
+    results = vector_store.search("embedding models", top_k=3)
+
+    # Assert
+    assert len(results) == 3
+    assert results[0].score > 0.7
 ```
 
 ## Key Patterns
