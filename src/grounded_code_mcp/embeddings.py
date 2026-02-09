@@ -28,9 +28,7 @@ class ModelNotFoundError(Exception):
 
     def __init__(self, model: str) -> None:
         self.model = model
-        super().__init__(
-            f"Model '{model}' not found. Run `ollama pull {model}` to download it."
-        )
+        super().__init__(f"Model '{model}' not found. Run `ollama pull {model}` to download it.")
 
 
 @dataclass
@@ -259,8 +257,7 @@ def get_helpful_error_message(error: Exception) -> str:
 
     if isinstance(error, ModelNotFoundError):
         return (
-            f"Model '{error.model}' is not available.\n"
-            f"Download it with: ollama pull {error.model}"
+            f"Model '{error.model}' is not available.\nDownload it with: ollama pull {error.model}"
         )
 
     return str(error)

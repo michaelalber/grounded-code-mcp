@@ -208,11 +208,13 @@ def _list_collections_impl() -> list[dict[str, Any]]:
         count = store.collection_count(coll)
         # Get source count from manifest
         sources = manifest.get_sources_by_collection(coll)
-        result.append({
-            "name": coll,
-            "chunk_count": count,
-            "source_count": len(sources),
-        })
+        result.append(
+            {
+                "name": coll,
+                "chunk_count": count,
+                "source_count": len(sources),
+            }
+        )
 
     return result
 

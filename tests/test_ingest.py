@@ -72,15 +72,11 @@ class TestIngestionPipeline:
         return embedder
 
     @pytest.fixture
-    def pipeline(
-        self, settings: Settings, mock_embedder: MagicMock
-    ) -> IngestionPipeline:
+    def pipeline(self, settings: Settings, mock_embedder: MagicMock) -> IngestionPipeline:
         """Create a pipeline with mocked embedder."""
         return IngestionPipeline(settings, embedder=mock_embedder)
 
-    def test_ingest_empty_directory(
-        self, pipeline: IngestionPipeline, settings: Settings
-    ) -> None:
+    def test_ingest_empty_directory(self, pipeline: IngestionPipeline, settings: Settings) -> None:
         """Test ingesting an empty directory."""
         stats = pipeline.ingest()
 
@@ -154,9 +150,7 @@ class TestIngestionPipeline:
         stats = pipeline.ingest(force=True)
         assert stats.files_ingested == 1
 
-    def test_ingest_nonexistent_path(
-        self, pipeline: IngestionPipeline, settings: Settings
-    ) -> None:
+    def test_ingest_nonexistent_path(self, pipeline: IngestionPipeline, settings: Settings) -> None:
         """Test ingesting nonexistent path returns empty stats."""
         nonexistent = settings.knowledge_base.sources_dir / "nonexistent"
         stats = pipeline.ingest(nonexistent)
@@ -164,9 +158,7 @@ class TestIngestionPipeline:
         assert stats.files_scanned == 0
         assert stats.success is True
 
-    def test_ingest_handles_embedder_error(
-        self, settings: Settings, temp_dir: Path
-    ) -> None:
+    def test_ingest_handles_embedder_error(self, settings: Settings, temp_dir: Path) -> None:
         """Test handling embedder connection errors."""
         from grounded_code_mcp.embeddings import OllamaConnectionError
 
@@ -203,9 +195,7 @@ class TestIngestionPipeline:
         assert result is True
         assert pipeline.manifest.get_entry("test.md") is None
 
-    def test_remove_nonexistent_source(
-        self, pipeline: IngestionPipeline
-    ) -> None:
+    def test_remove_nonexistent_source(self, pipeline: IngestionPipeline) -> None:
         """Test removing a source that doesn't exist."""
         result = pipeline.remove_source("nonexistent.md")
         assert result is False
@@ -237,9 +227,7 @@ class TestIngestDocuments:
         (sources_dir / "test.md").write_text("# Test\n\nContent.")
 
         # Mock the embedder
-        with patch(
-            "grounded_code_mcp.ingest.EmbeddingClient"
-        ) as mock_client_class:
+        with patch("grounded_code_mcp.ingest.EmbeddingClient") as mock_client_class:
             mock_embedder = MagicMock()
             mock_embedder.ensure_ready.return_value = None
             mock_embedder.embed_many.return_value = [
