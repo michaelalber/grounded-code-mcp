@@ -165,7 +165,7 @@ sources_dir = "sources"
 data_dir = ".data"
 
 [ollama]
-base_url = "http://localhost:11434"
+host = "http://localhost:11434"
 model = "mxbai-embed-large"
 embedding_dim = 1024
 

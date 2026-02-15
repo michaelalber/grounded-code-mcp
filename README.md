@@ -93,6 +93,51 @@ grounded-code-mcp serve
 grounded-code-mcp serve --debug
 ```
 
+### Connect MCP Clients
+
+The server uses **stdio** transport by default. Configure your MCP client to launch the server as a subprocess.
+
+**Claude Code** (`~/.claude/settings.json` or project `.mcp.json`):
+
+```json
+{
+  "mcpServers": {
+    "grounded-code-mcp": {
+      "command": "/path/to/grounded-code-mcp/.venv/bin/grounded-code-mcp",
+      "args": ["serve"]
+    }
+  }
+}
+```
+
+**OpenCode** (`opencode.json`):
+
+```json
+{
+  "mcpServers": {
+    "grounded-code-mcp": {
+      "command": "/path/to/grounded-code-mcp/.venv/bin/grounded-code-mcp",
+      "args": ["serve"]
+    }
+  }
+}
+```
+
+**VS Code / Continue** (`.vscode/settings.json`):
+
+```json
+{
+  "mcp.servers": {
+    "grounded-code-mcp": {
+      "command": "/path/to/grounded-code-mcp/.venv/bin/grounded-code-mcp",
+      "args": ["serve"]
+    }
+  }
+}
+```
+
+Replace `/path/to/grounded-code-mcp` with the actual install location. If using a system-wide install, just use `grounded-code-mcp` as the command.
+
 ## Configuration
 
 Create a `config.toml` file to customize settings:
@@ -103,7 +148,7 @@ sources_dir = "sources"
 data_dir = ".data"
 
 [ollama]
-base_url = "http://localhost:11434"
+host = "http://localhost:11434"
 model = "mxbai-embed-large"
 embedding_dim = 1024
 
