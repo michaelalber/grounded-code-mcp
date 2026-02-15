@@ -201,6 +201,76 @@ class TestIngestionPipeline:
         assert result is False
 
 
+class TestRebuildCollection:
+    """Tests for IngestionPipeline.rebuild_collection."""
+
+    @pytest.fixture
+    def settings(self, temp_dir: Path) -> Settings:
+        """Create settings for testing."""
+        sources_dir = temp_dir / "sources"
+        sources_dir.mkdir()
+        data_dir = temp_dir / "data"
+        data_dir.mkdir()
+
+        return Settings(
+            knowledge_base=KnowledgeBaseSettings(
+                sources_dir=sources_dir,
+                data_dir=data_dir,
+            ),
+            ollama=OllamaSettings(
+                model="test-model",
+                embedding_dim=128,
+            ),
+            chunking=ChunkingSettings(
+                text_chunk_size=100,
+                text_chunk_max_size=200,
+            ),
+            vectorstore=VectorStoreSettings(provider="qdrant"),
+        )
+
+    @pytest.fixture
+    def mock_embedder(self) -> MagicMock:
+        """Create a mock embedding client."""
+        embedder = MagicMock()
+        embedder.ensure_ready.return_value = None
+        embedder.embed_many.return_value = [
+            EmbeddingResult(text="test", embedding=[0.1] * 128, model="test")
+        ]
+        return embedder
+
+    def test_rebuild_collection(
+        self,
+        settings: Settings,
+        mock_embedder: MagicMock,
+    ) -> None:
+        """Test rebuilding an entire collection."""
+        # Create a test file and ingest it
+        test_file = settings.knowledge_base.sources_dir / "test.md"
+        test_file.write_text("# Test Document\n\nSome content here.")
+
+        pipeline = IngestionPipeline(settings, embedder=mock_embedder)
+        pipeline.ingest()
+
+        # Rebuild the collection
+        collections = pipeline.store.list_collections()
+        assert len(collections) > 0
+
+        stats = pipeline.rebuild_collection(collections[0])
+        assert stats.success is True
+
+    def test_rebuild_empty_collection(
+        self,
+        settings: Settings,
+        mock_embedder: MagicMock,
+    ) -> None:
+        """Test rebuilding a collection with no matching sources."""
+        pipeline = IngestionPipeline(settings, embedder=mock_embedder)
+
+        stats = pipeline.rebuild_collection("nonexistent_collection")
+        assert stats.success is True
+        assert stats.files_scanned == 0
+
+
 class TestIngestDocuments:
     """Tests for ingest_documents convenience function."""
 

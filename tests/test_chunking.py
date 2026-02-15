@@ -280,6 +280,32 @@ plain code block
         assert len(code_chunks) == 1
         assert code_chunks[0].code_language is None
 
+    def test_large_code_block_splits_on_newlines(self) -> None:
+        """Test that large code blocks without recognized language split on double newlines."""
+        chunker = DocumentChunker(max_code_chunk_size=100)
+        # Use a language not in FUNCTION_PATTERNS so it falls through to newline splitting
+        long_code = "\n\n".join([f"block_{i} = " + "x" * 40 for i in range(5)])
+        content = f"```ruby\n{long_code}\n```"
+
+        result = chunker.chunk(content, "test.rb")
+
+        code_chunks = [c for c in result if c.is_code]
+        assert len(code_chunks) >= 2
+        for chunk in code_chunks:
+            assert chunk.code_language == "ruby"
+
+    def test_large_code_block_unknown_language_splits(self) -> None:
+        """Test fallback splitting for code blocks without language."""
+        chunker = DocumentChunker(max_code_chunk_size=80)
+        long_code = "\n\n".join([f"section_{i} = " + "y" * 30 for i in range(5)])
+        content = f"```\n{long_code}\n```"
+
+        result = chunker.chunk(content, "test.txt")
+
+        code_chunks = [c for c in result if c.is_code]
+        # Should split since total exceeds max_code_chunk_size
+        assert len(code_chunks) >= 2
+
     def test_from_settings(self) -> None:
         """Test creating chunker from settings."""
         from grounded_code_mcp.config import ChunkingSettings
