@@ -144,21 +144,21 @@ def test_search_returns_relevant_chunks(vector_store, sample_chunks):
 - Incremental ingestion (only re-process changed files)
 - Chunk IDs tracked for targeted deletion on re-ingestion
 
-### Security-by-Design
+### Security-By-Design
 - Validate all inputs at system boundaries
-- Sanitize filenames (remove path traversal, special chars)
-- Validate file extensions: `.pdf`, `.epub`, `.md`, `.txt`, `.rst`, `.html`
+- Validate file extensions against allowlist (`.pdf`, `.epub`, `.md`, `.txt`, `.rst`, `.html`)
 - Verify MIME type via magic bytes or UTF-8 validation
-- Max size: 100MB (configurable)
-- Store uploads outside web root
-- Follow OWASP guidelines for file handling, auth, and data protection
+- Enforce file size limits (100MB configurable) and sanitize filenames
+- Bind HTTP transport to `127.0.0.1` by default
+- Never include secrets in source code — use environment variables
 
-### YAGNI Principle
-- No abstract interfaces until needed (Rule of Three)
-- No repository pattern - direct JSON read/write
+### YAGNI (You Aren't Gonna Need It)
+- Start with direct implementations
+- Add abstractions only when complexity demands it
+- Create interfaces only when multiple implementations exist
 - No dependency injection containers
-- No plugin architecture - simple match/case on file extension
-- Add abstractions only when necessary
+- No repository pattern — direct JSON read/write
+- No plugin architecture — simple match/case on file extension
 
 ## Configuration
 
