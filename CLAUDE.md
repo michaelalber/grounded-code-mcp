@@ -151,6 +151,7 @@ def test_search_returns_relevant_chunks(vector_store, sample_chunks):
 - Enforce file size limits (100MB configurable) and sanitize filenames
 - Bind HTTP transport to `127.0.0.1` by default
 - Never include secrets in source code — use environment variables
+- All rules align with [OWASP Top 10 (2025)](https://owasp.org/Top10/2025/) guidance
 
 ### YAGNI (You Aren't Gonna Need It)
 - Start with direct implementations
