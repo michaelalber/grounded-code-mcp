@@ -292,6 +292,8 @@ class TestInitialize:
 
     def test_initialize_with_settings(self, temp_dir: Path) -> None:
         """Test initialization with provided settings."""
+        import grounded_code_mcp.server as server_module
+
         settings = Settings(
             knowledge_base=KnowledgeBaseSettings(
                 sources_dir=temp_dir / "sources",
@@ -301,9 +303,13 @@ class TestInitialize:
         (temp_dir / "sources").mkdir()
         (temp_dir / "data").mkdir()
 
-        initialize(settings)
+        try:
+            initialize(settings)
 
-        from grounded_code_mcp.server import _settings
-
-        assert _settings is not None
-        assert _settings.knowledge_base.sources_dir == temp_dir / "sources"
+            assert server_module._settings is not None
+            assert server_module._settings.knowledge_base.sources_dir == temp_dir / "sources"
+        finally:
+            # Reset module globals to prevent state leaking into other tests
+            server_module._settings = None
+            server_module._embedder = None
+            server_module._manifest = None

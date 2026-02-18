@@ -160,6 +160,7 @@ class TestIngestionPipeline:
         stats = pipeline.ingest()
 
         assert stats.success is False
+        assert stats.files_failed > 0
         assert len(stats.errors) > 0
 
     def test_remove_source(
