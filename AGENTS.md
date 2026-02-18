@@ -120,11 +120,16 @@ bandit -r src/ -c pyproject.toml
 - **Maintainability Index**: Target 70+
 - **Code Duplication**: Maximum 3%
 
-## Git Workflow
+## Git Workflow — Atomic TDD Commits
 
-- Commit after each GREEN phase
-- Commit message format: `feat|fix|test|refactor: brief description`
-- Don't commit failing tests (RED phase is local only)
+- **Separate test and implementation commits** to create verifiable RED→GREEN evidence
+- RED phase: Write failing test, commit with `test: add failing test for <behavior>`
+- GREEN phase: Write minimal code to pass, commit with `feat|fix: <description>`
+- REFACTOR phase: Improve structure (tests stay green), commit with `refactor: <description>`
+- Never combine new tests and new production code in a single commit
+- Don't commit failing tests to shared branches (RED commits are for local/feature branches)
+- Commit message format: `test|feat|fix|refactor|style|ci|docs: brief description`
+- Run `pytest` before every commit
 
 ## Tools
 
@@ -138,8 +143,10 @@ bandit -r src/ -c pyproject.toml
 
 1. Write a failing test for the new feature
 2. Run `pytest -k <test_name>` to confirm it fails (RED)
-3. Write minimal code to make the test pass (GREEN)
-4. Run full test suite: `pytest`
-5. Run linters: `ruff check src/ tests/ && mypy src/`
-6. Refactor if needed while keeping tests green (REFACTOR)
+3. Commit: `git commit -m "test: add failing test for <behavior>"`
+4. Write minimal code to make the test pass (GREEN)
+5. Run full test suite: `pytest`
+6. Run linters: `ruff check src/ tests/ && mypy src/`
 7. Commit: `git commit -m "feat: <description>"`
+8. Refactor if needed while keeping tests green (REFACTOR)
+9. Commit: `git commit -m "refactor: <description>"`
