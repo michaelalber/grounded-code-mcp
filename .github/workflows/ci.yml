@@ -96,4 +96,5 @@ jobs:
           pip install -e ".[dev]"
 
       - name: Run pip-audit
-        run: pip-audit --skip-editable --desc on
+        # CVE-2025-69872: diskcache pickle deserialization — transitive dep, no fix available, not used directly
+        run: pip-audit --skip-editable --desc on --ignore-vuln CVE-2025-69872

@@ -62,9 +62,7 @@ class TestIngestCommand:
 
     @patch("grounded_code_mcp.__main__.Settings")
     @patch("grounded_code_mcp.ingest.ingest_documents")
-    def test_ingest_success(
-        self, mock_ingest: MagicMock, mock_settings_cls: MagicMock
-    ) -> None:
+    def test_ingest_success(self, mock_ingest: MagicMock, mock_settings_cls: MagicMock) -> None:
         """Test successful ingestion output."""
         mock_ingest.return_value = IngestStats(
             files_scanned=5,
