@@ -66,8 +66,8 @@ class TestIngestionPipeline:
         """Create a mock embedding client."""
         embedder = MagicMock()
         embedder.ensure_ready.return_value = None
-        embedder.embed_many.return_value = [
-            EmbeddingResult(text="test", embedding=[0.1] * 128, model="test")
+        embedder.embed_many.side_effect = lambda texts, **_kw: [
+            EmbeddingResult(text=t, embedding=[0.1] * 128, model="test") for t in texts
         ]
         return embedder
 
@@ -95,11 +95,6 @@ class TestIngestionPipeline:
         test_file = settings.knowledge_base.sources_dir / "test.md"
         test_file.write_text("# Test Document\n\nSome content here.")
 
-        # Mock embedder to return right number of embeddings
-        mock_embedder.embed_many.return_value = [
-            EmbeddingResult(text="test", embedding=[0.1] * 128, model="test")
-        ]
-
         stats = pipeline.ingest()
 
         assert stats.files_scanned == 1
@@ -118,9 +113,6 @@ class TestIngestionPipeline:
         test_file.write_text("# Test Document\n\nSome content here.")
 
         # First ingest
-        mock_embedder.embed_many.return_value = [
-            EmbeddingResult(text="test", embedding=[0.1] * 128, model="test")
-        ]
         stats1 = pipeline.ingest()
         assert stats1.files_ingested == 1
 
@@ -141,9 +133,6 @@ class TestIngestionPipeline:
         test_file.write_text("# Test Document\n\nSome content here.")
 
         # First ingest
-        mock_embedder.embed_many.return_value = [
-            EmbeddingResult(text="test", embedding=[0.1] * 128, model="test")
-        ]
         pipeline.ingest()
 
         # Force re-ingest
@@ -184,9 +173,6 @@ class TestIngestionPipeline:
         test_file = settings.knowledge_base.sources_dir / "test.md"
         test_file.write_text("# Test Document\n\nContent.")
 
-        mock_embedder.embed_many.return_value = [
-            EmbeddingResult(text="test", embedding=[0.1] * 128, model="test")
-        ]
         pipeline.ingest()
 
         # Remove the source
@@ -233,8 +219,8 @@ class TestRebuildCollection:
         """Create a mock embedding client."""
         embedder = MagicMock()
         embedder.ensure_ready.return_value = None
-        embedder.embed_many.return_value = [
-            EmbeddingResult(text="test", embedding=[0.1] * 128, model="test")
+        embedder.embed_many.side_effect = lambda texts, **_kw: [
+            EmbeddingResult(text=t, embedding=[0.1] * 128, model="test") for t in texts
         ]
         return embedder
 
@@ -300,8 +286,8 @@ class TestIngestDocuments:
         with patch("grounded_code_mcp.ingest.EmbeddingClient") as mock_client_class:
             mock_embedder = MagicMock()
             mock_embedder.ensure_ready.return_value = None
-            mock_embedder.embed_many.return_value = [
-                EmbeddingResult(text="test", embedding=[0.1] * 128, model="test")
+            mock_embedder.embed_many.side_effect = lambda texts, **_kw: [
+                EmbeddingResult(text=t, embedding=[0.1] * 128, model="test") for t in texts
             ]
             mock_client_class.from_settings.return_value = mock_embedder
 
