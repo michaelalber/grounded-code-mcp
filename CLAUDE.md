@@ -98,10 +98,15 @@ src/grounded_code_mcp/
 - **Maintainability Index**: Target 70+
 - **Code Duplication**: Maximum 3%
 
-### Git Workflow
-- Commit after each GREEN phase
-- Commit message format: `feat|fix|test|refactor: brief description`
-- Don't commit failing tests (RED phase is local only)
+### Git Workflow — Atomic TDD Commits
+- **Separate test and implementation commits** to create verifiable RED→GREEN evidence
+- RED phase: Write failing test, commit with `test: add failing test for <behavior>`
+- GREEN phase: Write minimal code to pass, commit with `feat|fix: <description>`
+- REFACTOR phase: Improve structure (tests stay green), commit with `refactor: <description>`
+- Never combine new tests and new production code in a single commit
+- Don't commit failing tests to shared branches (RED commits are for local/feature branches)
+- Commit message format: `test|feat|fix|refactor|style|ci|docs: brief description`
+- Run `pytest` before every commit
 
 ### Testing Patterns
 
