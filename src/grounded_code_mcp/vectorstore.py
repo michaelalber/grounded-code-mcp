@@ -285,6 +285,10 @@ class QdrantStore(VectorStore):
         info = self._client.get_collection(collection_name=name)
         return info.points_count or 0
 
+    def close(self) -> None:
+        """Close the Qdrant client and release storage locks."""
+        self._client.close()
+
 
 class ChromaStore(VectorStore):
     """ChromaDB vector store implementation (fallback)."""

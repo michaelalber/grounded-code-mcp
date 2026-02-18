@@ -205,9 +205,9 @@ Content in section two.
 
         # Find chunks with section content
         section_two_chunks = [c for c in result if "section two" in c.content.lower()]
-        if section_two_chunks:
-            # Should have heading context
-            assert len(section_two_chunks[0].heading_context) > 0
+        assert len(section_two_chunks) > 0, "Expected at least one chunk from section two"
+        # Should have heading context
+        assert len(section_two_chunks[0].heading_context) > 0
 
     def test_source_path_in_chunks(self) -> None:
         """Test that source path is included in chunks."""
@@ -241,9 +241,13 @@ Content in section two.
 
         result = chunker.chunk(content, "test.md")
 
-        # All chunks should be under max size
+        # Chunks may include overlap text prepended from the previous chunk,
+        # so the upper bound is text_chunk_max_size + text_chunk_overlap
+        max_allowed = chunker.text_chunk_max_size + chunker.text_chunk_overlap
         for chunk in result:
-            assert chunk.char_count <= 200  # Some tolerance for edge cases
+            assert chunk.char_count <= max_allowed, (
+                f"Chunk exceeded max allowed size ({max_allowed}): {chunk.char_count}"
+            )
 
     def test_multiple_code_languages(self) -> None:
         """Test handling multiple code block languages."""

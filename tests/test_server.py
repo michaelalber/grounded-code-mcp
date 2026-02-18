@@ -112,8 +112,8 @@ class TestServerTools:
         ):
             results = _search_knowledge_impl("test query")
 
-        # Results from 2 collections, but limited to n_results
-        assert len(results) >= 1
+        # Mock returns 1 result per collection (2 collections), both within n_results=5
+        assert len(results) == 2
         assert results[0]["content"] == "Test content here"
         assert results[0]["score"] == 0.95
         assert results[0]["source_path"] == "docs/test.md"
@@ -133,12 +133,15 @@ class TestServerTools:
                 return_value=mock_store,
             ),
         ):
-            _search_knowledge_impl("test query", collection="python")
+            results = _search_knowledge_impl("test query", collection="python")
 
         # Should search only the specified collection
-        mock_store.search.assert_called()
+        assert mock_store.search.call_count == 1
         call_args = mock_store.search.call_args
         assert call_args[0][0] == "grounded_python"
+        # Should return formatted results from the single collection
+        assert len(results) == 1
+        assert results[0]["content"] == "Test content here"
 
     def test_search_knowledge_embedder_error(self, settings: Settings) -> None:
         """Test search_knowledge handles embedder errors."""

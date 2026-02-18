@@ -212,9 +212,9 @@ class TestQdrantStore:
         store1.create_collection("persistent", embedding_dim=128)
         store1.add_chunks("persistent", sample_chunks, sample_embeddings)
 
-        # Close the first client before opening a new one
+        # Close the first store before opening a new one
         # Qdrant local client locks the storage directory
-        store1._client.close()
+        store1.close()
 
         # Create new instance and verify data persists
         store2 = QdrantStore(path=store_path)

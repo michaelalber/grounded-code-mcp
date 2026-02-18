@@ -63,7 +63,7 @@ class TestIngestCommand:
     @patch("grounded_code_mcp.__main__.Settings")
     @patch("grounded_code_mcp.ingest.ingest_documents")
     def test_ingest_success(
-        self, mock_ingest: MagicMock, _mock_settings_cls: MagicMock
+        self, mock_ingest: MagicMock, mock_settings_cls: MagicMock
     ) -> None:
         """Test successful ingestion output."""
         mock_ingest.return_value = IngestStats(
@@ -83,6 +83,13 @@ class TestIngestCommand:
         assert "Scanned: 5" in result.output
         assert "Skipped: 2" in result.output
         assert "Chunks created: 15" in result.output
+        # Verify settings from Settings.load() are passed to ingest_documents
+        mock_ingest.assert_called_once_with(
+            mock_settings_cls.load.return_value,
+            path=None,
+            collection=None,
+            force=False,
+        )
 
     @patch("grounded_code_mcp.__main__.Settings")
     @patch("grounded_code_mcp.ingest.ingest_documents")
