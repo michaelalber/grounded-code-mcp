@@ -287,16 +287,17 @@ plain code block
     def test_large_code_block_splits_on_newlines(self) -> None:
         """Test that large code blocks without recognized language split on double newlines."""
         chunker = DocumentChunker(max_code_chunk_size=100)
-        # Use a language not in FUNCTION_PATTERNS so it falls through to newline splitting
+        # Use a fictional language guaranteed to never be in FUNCTION_PATTERNS,
+        # so it falls through to newline splitting
         long_code = "\n\n".join([f"block_{i} = " + "x" * 40 for i in range(5)])
-        content = f"```ruby\n{long_code}\n```"
+        content = f"```xunknownlang\n{long_code}\n```"
 
-        result = chunker.chunk(content, "test.rb")
+        result = chunker.chunk(content, "test.txt")
 
         code_chunks = [c for c in result if c.is_code]
         assert len(code_chunks) >= 2
         for chunk in code_chunks:
-            assert chunk.code_language == "ruby"
+            assert chunk.code_language == "xunknownlang"
 
     def test_large_code_block_unknown_language_splits(self) -> None:
         """Test fallback splitting for code blocks without language."""

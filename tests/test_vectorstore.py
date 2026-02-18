@@ -168,11 +168,12 @@ class TestQdrantStore:
         store.create_collection("test_collection", embedding_dim=128)
         store.add_chunks("test_collection", sample_chunks, sample_embeddings)
 
-        # Search with very high min_score
+        # All embeddings are parallel vectors ([0.1]*128, [0.2]*128),
+        # so cosine similarity with [0.5]*128 is exactly 1.0
         query = [0.5] * 128
         results = store.search("test_collection", query, min_score=0.99)
 
-        # May return empty if no results meet threshold
+        assert len(results) == 2, "Parallel vectors should have cosine similarity 1.0"
         assert all(r.score >= 0.99 for r in results)
 
     def test_list_collections(self, store: QdrantStore) -> None:
