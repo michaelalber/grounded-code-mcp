@@ -14,6 +14,8 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+_CHARS_PER_TOKEN_ESTIMATE = 3
+
 
 class OllamaConnectionError(Exception):
     """Error connecting to Ollama server."""
@@ -52,15 +54,18 @@ class EmbeddingClient:
         self,
         model: str = "snowflake-arctic-embed2",
         host: str = "http://localhost:11434",
+        context_length: int = 8192,
     ) -> None:
         """Initialize the embedding client.
 
         Args:
             model: Name of the embedding model to use.
             host: Ollama server URL.
+            context_length: Model context length in tokens.
         """
         self.model = model
         self.host = host
+        self.context_length = context_length
         self._client: ollama.Client | None = None
 
     @classmethod
@@ -73,7 +78,11 @@ class EmbeddingClient:
         Returns:
             Configured EmbeddingClient.
         """
-        return cls(model=settings.model, host=settings.host)
+        return cls(
+            model=settings.model,
+            host=settings.host,
+            context_length=settings.context_length,
+        )
 
     @property
     def client(self) -> ollama.Client:
@@ -81,6 +90,30 @@ class EmbeddingClient:
         if self._client is None:
             self._client = ollama.Client(host=self.host)
         return self._client
+
+    @property
+    def max_chars(self) -> int:
+        """Maximum character length before truncation."""
+        return self.context_length * _CHARS_PER_TOKEN_ESTIMATE
+
+    def _truncate_text(self, text: str) -> str:
+        """Truncate text that would exceed the model's context length.
+
+        Args:
+            text: Input text.
+
+        Returns:
+            Text truncated to max_chars if it exceeds the limit.
+        """
+        if len(text) <= self.max_chars:
+            return text
+        logger.warning(
+            "Truncating text from %d to %d chars (context_length=%d tokens)",
+            len(text),
+            self.max_chars,
+            self.context_length,
+        )
+        return text[: self.max_chars]
 
     def health_check(self) -> dict[str, bool | str | int | None]:
         """Check if Ollama is running and model is available.
@@ -161,6 +194,7 @@ class EmbeddingClient:
             OllamaConnectionError: If server is not reachable.
             ModelNotFoundError: If model is not available.
         """
+        text = self._truncate_text(text)
         input_text = f"query: {text}" if is_query else text
         try:
             response = self.client.embed(model=self.model, input=input_text)
@@ -211,7 +245,7 @@ class EmbeddingClient:
         total = len(texts)
 
         for i in range(0, total, batch_size):
-            batch = texts[i : i + batch_size]
+            batch = [self._truncate_text(t) for t in texts[i : i + batch_size]]
             if is_query:
                 batch = [f"query: {t}" for t in batch]
 

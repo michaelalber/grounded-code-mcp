@@ -239,6 +239,70 @@ class TestEmbeddingClient:
         assert len(results) == 5
         assert mock_ollama.embed.call_count == 3
 
+    def test_init_with_context_length(self) -> None:
+        """Test constructor stores context_length."""
+        client = EmbeddingClient(context_length=4096)
+        assert client.context_length == 4096
+
+    def test_max_chars_property(self) -> None:
+        """Test max_chars = context_length * _CHARS_PER_TOKEN_ESTIMATE."""
+        client = EmbeddingClient(context_length=8192)
+        assert client.max_chars == 8192 * 3  # 24576
+
+    def test_truncate_text_short(self) -> None:
+        """Text under limit passes through unchanged."""
+        client = EmbeddingClient(context_length=8192)
+        short_text = "hello world"
+        assert client._truncate_text(short_text) == short_text
+
+    def test_truncate_text_long(self) -> None:
+        """Text over limit is truncated to max_chars."""
+        client = EmbeddingClient(context_length=100)
+        max_chars = 100 * 3  # 300
+        long_text = "x" * 500
+        result = client._truncate_text(long_text)
+        assert len(result) == max_chars
+
+    def test_embed_truncates_long_text(self) -> None:
+        """embed() truncates before sending to Ollama."""
+        client = EmbeddingClient(model="test-model", context_length=100)
+        max_chars = 100 * 3  # 300
+        long_text = "a" * 500
+
+        mock_ollama = MagicMock()
+        mock_ollama.embed.return_value = {"embeddings": [[0.1, 0.2]]}
+
+        with patch.object(client, "_client", mock_ollama):
+            client.embed(long_text)
+
+        # The text sent to Ollama should be truncated
+        sent_text = mock_ollama.embed.call_args[1]["input"]
+        assert len(sent_text) == max_chars
+
+    def test_embed_many_truncates_long_texts(self) -> None:
+        """embed_many() truncates each text before sending to Ollama."""
+        client = EmbeddingClient(model="test-model", context_length=100)
+        max_chars = 100 * 3  # 300
+        texts = ["b" * 500, "short"]
+
+        mock_ollama = MagicMock()
+        mock_ollama.embed.return_value = {"embeddings": [[0.1], [0.2]]}
+
+        with patch.object(client, "_client", mock_ollama):
+            client.embed_many(texts)
+
+        sent_batch = mock_ollama.embed.call_args[1]["input"]
+        assert len(sent_batch[0]) == max_chars
+        assert sent_batch[1] == "short"
+
+    def test_from_settings_passes_context_length(self) -> None:
+        """from_settings() wires through context_length."""
+        from grounded_code_mcp.config import OllamaSettings
+
+        settings = OllamaSettings(context_length=4096)
+        client = EmbeddingClient.from_settings(settings)
+        assert client.context_length == 4096
+
     def test_get_embedding_dimensions(self) -> None:
         """Test getting embedding dimensions."""
         client = EmbeddingClient(model="test-model")

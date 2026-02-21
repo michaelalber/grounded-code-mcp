@@ -39,6 +39,11 @@ class TestOllamaSettings:
         assert settings.host == "http://localhost:11434"
         assert settings.embedding_dim == 1024
 
+    def test_context_length_default(self) -> None:
+        """Test context_length defaults to 8192."""
+        settings = OllamaSettings()
+        assert settings.context_length == 8192
+
 
 class TestChunkingSettings:
     """Tests for ChunkingSettings."""
