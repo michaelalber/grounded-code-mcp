@@ -15,6 +15,8 @@ model = "snowflake-arctic-embed2"
 host = "http://localhost:11434"
 # Embedding dimensions (snowflake-arctic-embed2 = 1024)
 embedding_dim = 1024
+# Model context length in tokens (snowflake-arctic-embed2 = 8192)
+context_length = 8192
 
 [chunking]
 # Text chunk size in characters

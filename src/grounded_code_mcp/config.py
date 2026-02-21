@@ -33,6 +33,7 @@ class OllamaSettings(BaseModel):
     model: str = Field(default="snowflake-arctic-embed2")
     host: str = Field(default="http://localhost:11434")
     embedding_dim: int = Field(default=1024)
+    context_length: int = Field(default=8192)
 
 
 class ChunkingSettings(BaseModel):
