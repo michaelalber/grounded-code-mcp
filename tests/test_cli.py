@@ -159,13 +159,13 @@ class TestStatusCommand:
         mock_settings.knowledge_base.data_dir = temp_dir / "data"
         mock_settings.knowledge_base.manifest_path = temp_dir / "manifest.json"
         mock_settings.vectorstore.provider = "qdrant"
-        mock_settings.ollama.model = "mxbai-embed-large"
+        mock_settings.ollama.model = "snowflake-arctic-embed2"
         mock_settings_cls.load.return_value = mock_settings
 
         mock_embedder = MagicMock()
         mock_embedder.health_check.return_value = {
             "healthy": True,
-            "model": "mxbai-embed-large",
+            "model": "snowflake-arctic-embed2",
         }
         mock_from_settings.return_value = mock_embedder
 
@@ -197,7 +197,7 @@ class TestStatusCommand:
         mock_settings.knowledge_base.data_dir = temp_dir / "data"
         mock_settings.knowledge_base.manifest_path = temp_dir / "manifest.json"
         mock_settings.vectorstore.provider = "qdrant"
-        mock_settings.ollama.model = "mxbai-embed-large"
+        mock_settings.ollama.model = "snowflake-arctic-embed2"
         mock_settings_cls.load.return_value = mock_settings
 
         mock_embedder = MagicMock()
@@ -239,11 +239,11 @@ class TestStatusCommand:
         mock_settings.knowledge_base.data_dir = temp_dir / "data"
         mock_settings.knowledge_base.manifest_path = manifest_path
         mock_settings.vectorstore.provider = "qdrant"
-        mock_settings.ollama.model = "mxbai-embed-large"
+        mock_settings.ollama.model = "snowflake-arctic-embed2"
         mock_settings_cls.load.return_value = mock_settings
 
         mock_embedder = MagicMock()
-        mock_embedder.health_check.return_value = {"healthy": True, "model": "mxbai-embed-large"}
+        mock_embedder.health_check.return_value = {"healthy": True, "model": "snowflake-arctic-embed2"}
         mock_from_settings.return_value = mock_embedder
 
         mock_manifest = MagicMock()
@@ -284,7 +284,7 @@ class TestStatusCommand:
         mock_settings.knowledge_base.data_dir = temp_dir / "data"
         mock_settings.knowledge_base.manifest_path = temp_dir / "manifest.json"
         mock_settings.vectorstore.provider = "qdrant"
-        mock_settings.ollama.model = "mxbai-embed-large"
+        mock_settings.ollama.model = "snowflake-arctic-embed2"
         mock_settings_cls.load.return_value = mock_settings
 
         mock_embedder = MagicMock()

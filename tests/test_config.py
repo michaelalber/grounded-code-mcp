@@ -35,7 +35,7 @@ class TestOllamaSettings:
     def test_defaults(self) -> None:
         """Test default values."""
         settings = OllamaSettings()
-        assert settings.model == "mxbai-embed-large"
+        assert settings.model == "snowflake-arctic-embed2"
         assert settings.host == "http://localhost:11434"
         assert settings.embedding_dim == 1024
 
@@ -83,7 +83,7 @@ class TestSettings:
 
         assert settings.knowledge_base.sources_dir == Path("sources")
         assert settings.knowledge_base.data_dir == Path(".grounded-code-mcp")
-        assert settings.ollama.model == "mxbai-embed-large"
+        assert settings.ollama.model == "snowflake-arctic-embed2"
         assert settings.chunking.text_chunk_size == 1000
         assert settings.vectorstore.provider == "qdrant"
 
@@ -98,13 +98,13 @@ class TestSettings:
         config_path.write_text(sample_config_toml)
 
         settings = Settings.load(config_path)
-        assert settings.ollama.model == "mxbai-embed-large"
+        assert settings.ollama.model == "snowflake-arctic-embed2"
 
     def test_load_fallback_to_defaults(self, temp_dir: Path) -> None:
         """Test load() falls back to defaults when no config found."""
         # Use a non-existent path to force defaults
         settings = Settings.load(temp_dir / "nonexistent.toml")
-        assert settings.ollama.model == "mxbai-embed-large"
+        assert settings.ollama.model == "snowflake-arctic-embed2"
 
     def test_get_collection_name_from_mapping(self) -> None:
         """Test collection name from explicit mapping."""

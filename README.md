@@ -17,7 +17,7 @@ LLMs are sophisticated pattern matchers, not reasoning engines. This project mit
 
 - **Multi-format document ingestion** - PDF, DOCX, PPTX, HTML, Markdown, AsciiDoc, EPUB via Docling
 - **Code-aware semantic chunking** - Preserves code blocks, tables, and heading hierarchy
-- **Local embeddings** - Ollama with mxbai-embed-large (1024 dimensions)
+- **Local embeddings** - Ollama with snowflake-arctic-embed2 (1024 dimensions)
 - **Dual vector store support** - Qdrant (primary) or ChromaDB (fallback)
 - **Change detection** - SHA-256 hashing for incremental updates
 - **MCP tools** - Search knowledge, find code examples, browse collections
@@ -49,7 +49,7 @@ Install and start Ollama, then pull the embedding model:
 systemctl --user start ollama  # or: ollama serve
 
 # Pull the embedding model
-ollama pull mxbai-embed-large
+ollama pull snowflake-arctic-embed2
 ```
 
 ## Usage
@@ -97,46 +97,27 @@ grounded-code-mcp serve --debug
 
 The server uses **stdio** transport by default. Configure your MCP client to launch the server as a subprocess.
 
-**Claude Code** (`~/.claude/settings.json` or project `.mcp.json`):
+**Claude Code** (user scope, available in all projects):
+
+```bash
+claude mcp add --transport stdio --scope user grounded-code-mcp -- grounded-code-mcp serve
+```
+
+**OpenCode** (`~/.config/opencode/opencode.json`):
 
 ```json
 {
-  "mcpServers": {
+  "mcp": {
     "grounded-code-mcp": {
-      "command": "/path/to/grounded-code-mcp/.venv/bin/grounded-code-mcp",
-      "args": ["serve"]
+      "type": "local",
+      "command": ["grounded-code-mcp", "serve"],
+      "enabled": true
     }
   }
 }
 ```
 
-**OpenCode** (`opencode.json`):
-
-```json
-{
-  "mcpServers": {
-    "grounded-code-mcp": {
-      "command": "/path/to/grounded-code-mcp/.venv/bin/grounded-code-mcp",
-      "args": ["serve"]
-    }
-  }
-}
-```
-
-**VS Code / Continue** (`.vscode/settings.json`):
-
-```json
-{
-  "mcp.servers": {
-    "grounded-code-mcp": {
-      "command": "/path/to/grounded-code-mcp/.venv/bin/grounded-code-mcp",
-      "args": ["serve"]
-    }
-  }
-}
-```
-
-Replace `/path/to/grounded-code-mcp` with the actual install location. If using a system-wide install, just use `grounded-code-mcp` as the command.
+If installed via `pipx`, the `grounded-code-mcp` command is on PATH and works from any directory.
 
 ## Configuration
 
@@ -149,7 +130,7 @@ data_dir = ".data"
 
 [ollama]
 host = "http://localhost:11434"
-model = "mxbai-embed-large"
+model = "snowflake-arctic-embed2"
 embedding_dim = 1024
 
 [chunking]
@@ -210,7 +191,7 @@ bandit -r src/ -c pyproject.toml
 - **MCP Framework:** FastMCP
 - **Document Parsing:** Docling
 - **Vector Store:** Qdrant / ChromaDB
-- **Embeddings:** Ollama + mxbai-embed-large
+- **Embeddings:** Ollama + snowflake-arctic-embed2
 - **Configuration:** TOML + Pydantic
 - **CLI:** Click + Rich
 - **Testing:** pytest

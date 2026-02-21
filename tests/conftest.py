@@ -46,7 +46,7 @@ data_dir = ".grounded-code-mcp"
 manifest_file = "manifest.json"
 
 [ollama]
-model = "mxbai-embed-large"
+model = "snowflake-arctic-embed2"
 host = "http://localhost:11434"
 
 [chunking]
