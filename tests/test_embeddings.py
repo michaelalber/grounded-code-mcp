@@ -38,7 +38,7 @@ class TestEmbeddingClient:
     def test_init_defaults(self) -> None:
         """Test default initialization."""
         client = EmbeddingClient()
-        assert client.model == "mxbai-embed-large"
+        assert client.model == "snowflake-arctic-embed2"
         assert client.host == "http://localhost:11434"
 
     def test_init_custom(self) -> None:
@@ -65,10 +65,10 @@ class TestEmbeddingClient:
 
     def test_health_check_healthy(self) -> None:
         """Test health check when server and model are available."""
-        client = EmbeddingClient(model="mxbai-embed-large")
+        client = EmbeddingClient(model="snowflake-arctic-embed2")
 
         mock_ollama = MagicMock()
-        mock_ollama.list.return_value = {"models": [{"name": "mxbai-embed-large:latest"}]}
+        mock_ollama.list.return_value = {"models": [{"name": "snowflake-arctic-embed2:latest"}]}
 
         with patch.object(client, "_client", mock_ollama):
             result = client.health_check()
@@ -144,7 +144,7 @@ class TestEmbeddingClient:
             client.ensure_ready()
 
     def test_embed_success(self) -> None:
-        """Test successful embedding generation."""
+        """Test successful embedding generation for documents (no prefix)."""
         client = EmbeddingClient(model="test-model")
 
         mock_ollama = MagicMock()
@@ -157,6 +157,31 @@ class TestEmbeddingClient:
         assert result.embedding == [0.1, 0.2, 0.3, 0.4, 0.5]
         assert result.model == "test-model"
         mock_ollama.embed.assert_called_once_with(model="test-model", input="test text")
+
+    def test_embed_query_prefix(self) -> None:
+        """Test that is_query=True prepends 'query: ' prefix."""
+        client = EmbeddingClient(model="test-model")
+
+        mock_ollama = MagicMock()
+        mock_ollama.embed.return_value = {"embeddings": [[0.1, 0.2, 0.3]]}
+
+        with patch.object(client, "_client", mock_ollama):
+            result = client.embed("search terms", is_query=True)
+
+        assert result.text == "search terms"
+        mock_ollama.embed.assert_called_once_with(model="test-model", input="query: search terms")
+
+    def test_embed_document_no_prefix(self) -> None:
+        """Test that is_query=False (default) sends text without prefix."""
+        client = EmbeddingClient(model="test-model")
+
+        mock_ollama = MagicMock()
+        mock_ollama.embed.return_value = {"embeddings": [[0.1, 0.2, 0.3]]}
+
+        with patch.object(client, "_client", mock_ollama):
+            result = client.embed("document content", is_query=False)
+
+        mock_ollama.embed.assert_called_once_with(model="test-model", input="document content")
 
     def test_embed_model_not_found(self) -> None:
         """Test embed raises when model not found."""
@@ -241,11 +266,11 @@ class TestGetHelpfulErrorMessage:
 
     def test_model_not_found_message(self) -> None:
         """Test message for model not found."""
-        error = ModelNotFoundError("mxbai-embed-large")
+        error = ModelNotFoundError("snowflake-arctic-embed2")
         message = get_helpful_error_message(error)
 
         assert "not available" in message
-        assert "ollama pull mxbai-embed-large" in message
+        assert "ollama pull snowflake-arctic-embed2" in message
 
     def test_generic_error_message(self) -> None:
         """Test message for generic error."""

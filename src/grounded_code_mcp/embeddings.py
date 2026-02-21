@@ -50,7 +50,7 @@ class EmbeddingClient:
 
     def __init__(
         self,
-        model: str = "mxbai-embed-large",
+        model: str = "snowflake-arctic-embed2",
         host: str = "http://localhost:11434",
     ) -> None:
         """Initialize the embedding client.
@@ -99,14 +99,25 @@ class EmbeddingClient:
 
         try:
             # Check if server is reachable
-            models = self.client.list()
+            models_response = self.client.list()
             result["server_reachable"] = True
 
             # Check if our model is available
-            model_names = [m.get("name", "").split(":")[0] for m in models.get("models", [])]
-            if self.model in model_names or f"{self.model}:latest" in [
-                m.get("name", "") for m in models.get("models", [])
-            ]:
+            # Support both old dict API and new typed API from ollama client
+            models_list = getattr(models_response, "models", None)
+            if models_list is None:
+                models_list = models_response.get("models", [])  # type: ignore[union-attr]
+
+            model_names: list[str] = []
+            for m in models_list:
+                name = getattr(m, "model", None) or (m.get("name", "") if isinstance(m, dict) else "")
+                model_names.append(name)
+
+            # Match against "model" or "model:latest"
+            if any(
+                n == self.model or n == f"{self.model}:latest" or n.split(":")[0] == self.model
+                for n in model_names
+            ):
                 result["model_available"] = True
                 result["healthy"] = True
             else:
@@ -135,11 +146,13 @@ class EmbeddingClient:
         if not health["model_available"]:
             raise ModelNotFoundError(self.model)
 
-    def embed(self, text: str) -> EmbeddingResult:
+    def embed(self, text: str, *, is_query: bool = False) -> EmbeddingResult:
         """Generate embedding for a single text.
 
         Args:
             text: Text to embed.
+            is_query: If True, prepend query prefix for retrieval models
+                (e.g. snowflake-arctic-embed2 uses "query: " prefix).
 
         Returns:
             EmbeddingResult with the embedding vector.
@@ -148,8 +161,9 @@ class EmbeddingClient:
             OllamaConnectionError: If server is not reachable.
             ModelNotFoundError: If model is not available.
         """
+        input_text = f"query: {text}" if is_query else text
         try:
-            response = self.client.embed(model=self.model, input=text)
+            response = self.client.embed(model=self.model, input=input_text)
             embeddings = response.get("embeddings", [[]])
             embedding = embeddings[0] if embeddings else []
 
@@ -173,6 +187,7 @@ class EmbeddingClient:
         *,
         batch_size: int = 32,
         show_progress: bool = False,
+        is_query: bool = False,
     ) -> list[EmbeddingResult]:
         """Generate embeddings for multiple texts.
 
@@ -180,6 +195,7 @@ class EmbeddingClient:
             texts: List of texts to embed.
             batch_size: Number of texts to embed per batch.
             show_progress: Whether to show progress output.
+            is_query: If True, prepend query prefix for retrieval models.
 
         Returns:
             List of EmbeddingResult objects.
@@ -196,6 +212,8 @@ class EmbeddingClient:
 
         for i in range(0, total, batch_size):
             batch = texts[i : i + batch_size]
+            if is_query:
+                batch = [f"query: {t}" for t in batch]
 
             if show_progress:
                 end = min(i + batch_size, total)

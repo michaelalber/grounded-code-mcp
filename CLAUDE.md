@@ -23,7 +23,7 @@ This project addresses LLM limitations (hallucination, brittle compositionality,
 | MCP Framework | FastMCP (<3) |
 | Document Parsing | Docling |
 | Vector Store | Qdrant (primary), ChromaDB (fallback) |
-| Embeddings | Ollama + mxbai-embed-large (1024 dim) |
+| Embeddings | Ollama (model configured in `config.toml`) |
 | Configuration | TOML + Pydantic |
 | CLI | Click + Rich |
 | Testing | pytest |
@@ -163,27 +163,13 @@ def test_search_returns_relevant_chunks(vector_store, sample_chunks):
 
 ## Configuration
 
-Default config in `config.toml`. Settings can be customized:
-
-```toml
-[knowledge_base]
-sources_dir = "sources"
-data_dir = ".data"
-
-[ollama]
-host = "http://localhost:11434"
-model = "mxbai-embed-large"
-embedding_dim = 1024
-
-[vectorstore]
-provider = "qdrant"  # or "chroma"
-```
+Default config in `config.toml`. See that file for all available settings including embedding model, vector store provider, and chunking parameters.
 
 ## Prerequisites
 
-Ollama must be running with the embedding model:
+Ollama must be running with the configured embedding model:
 
 ```bash
-ollama pull mxbai-embed-large
+ollama pull <model-from-config.toml>
 ollama serve  # or: systemctl --user start ollama
 ```

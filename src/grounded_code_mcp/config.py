@@ -30,7 +30,7 @@ class KnowledgeBaseSettings(BaseModel):
 class OllamaSettings(BaseModel):
     """Settings for Ollama embeddings."""
 
-    model: str = Field(default="mxbai-embed-large")
+    model: str = Field(default="snowflake-arctic-embed2")
     host: str = Field(default="http://localhost:11434")
     embedding_dim: int = Field(default=1024)
 

@@ -160,7 +160,7 @@ def search(query: str, collection: str | None, n_results: int, min_score: float)
 
     # Generate query embedding
     console.print(f"[dim]Searching for: {query}[/dim]\n")
-    result = embedder.embed(query)
+    result = embedder.embed(query, is_query=True)
 
     # Determine collections to search
     if collection:

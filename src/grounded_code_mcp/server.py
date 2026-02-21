@@ -106,7 +106,7 @@ def _search_knowledge_impl(
         return [{"error": error_msg}]
 
     # Generate query embedding
-    result = embedder.embed(query)
+    result = embedder.embed(query, is_query=True)
     query_embedding = result.embedding
 
     # Determine which collections to search
@@ -153,7 +153,7 @@ def _search_code_examples_impl(
         return [{"error": error_msg}]
 
     # Generate query embedding
-    result = embedder.embed(query)
+    result = embedder.embed(query, is_query=True)
     query_embedding = result.embedding
 
     # Build metadata filter for code blocks

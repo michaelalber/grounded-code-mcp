@@ -9,11 +9,11 @@ data_dir = ".grounded-code-mcp"
 manifest_file = "manifest.json"
 
 [ollama]
-# Embedding model - mxbai-embed-large has top MTEB scores
-model = "mxbai-embed-large"
+# Embedding model - snowflake-arctic-embed2 (8K context, best retrieval scores)
+model = "snowflake-arctic-embed2"
 # Ollama server host
 host = "http://localhost:11434"
-# Embedding dimensions (mxbai-embed-large = 1024)
+# Embedding dimensions (snowflake-arctic-embed2 = 1024)
 embedding_dim = 1024
 
 [chunking]
