@@ -141,7 +141,7 @@ def serve(debug: bool) -> None:
 @click.argument("query")
 @click.option("--collection", help="Search specific collection")
 @click.option("-n", "--n-results", default=5, help="Number of results")
-@click.option("--min-score", default=0.7, help="Minimum similarity score")
+@click.option("--min-score", default=0.5, help="Minimum similarity score")
 def search(query: str, collection: str | None, n_results: int, min_score: float) -> None:
     """Search the knowledge base."""
     from grounded_code_mcp.embeddings import EmbeddingClient, get_helpful_error_message
