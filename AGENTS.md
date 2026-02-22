@@ -2,41 +2,53 @@
 
 This file contains guidelines for agentic coding agents operating in this repository.
 
+## Runtime vs Development
+
+The CLI is installed via **pipx** and available on PATH. Use it directly for all runtime commands:
+```bash
+grounded-code-mcp ingest ...
+grounded-code-mcp serve --debug
+```
+
+After code changes, reinstall: `pipx install . --force`
+
+Dev tools (pytest, ruff, mypy) live in `.venv/`. **Do not** use `.venv/bin/grounded-code-mcp` — always use the pipx-installed binary.
+
 ## Build/Lint/Test Commands
 
 ### Setup
 ```bash
-pip install -e ".[dev]"
+python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
 ```
 
 ### Running Tests
 ```bash
 # Run all tests
-pytest
+.venv/bin/pytest
 
 # Run a single test file
-pytest tests/test_chunking.py
+.venv/bin/pytest tests/test_chunking.py
 
 # Run a specific test class
-pytest tests/test_chunking.py::TestDocumentChunker::test_empty_content
+.venv/bin/pytest tests/test_chunking.py::TestDocumentChunker::test_empty_content
 
 # Run a specific test method
-pytest tests/test_chunking.py::TestDocumentChunker::test_simple_text
+.venv/bin/pytest tests/test_chunking.py::TestDocumentChunker::test_simple_text
 
 # Run with coverage
-pytest --cov=grounded_code_mcp
+.venv/bin/pytest --cov=grounded_code_mcp
 ```
 
 ### Linting and Type Checking
 ```bash
 # Lint
-ruff check src/ tests/
+.venv/bin/ruff check src/ tests/
 
 # Type check
-mypy src/
+.venv/bin/mypy src/
 
 # Security scan
-bandit -r src/ -c pyproject.toml
+.venv/bin/bandit -r src/ -c pyproject.toml
 ```
 
 ## Code Style Guidelines

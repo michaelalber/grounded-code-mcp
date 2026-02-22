@@ -30,29 +30,48 @@ This project addresses LLM limitations (hallucination, brittle compositionality,
 | Linting | ruff |
 | Type Checking | mypy |
 
+## Runtime vs Development
+
+The CLI is installed via **pipx** and available on PATH. Use it directly for all runtime commands:
+```bash
+grounded-code-mcp ingest ...
+grounded-code-mcp serve --debug
+```
+
+After code changes, reinstall: `pipx install . --force`
+
+Dev tools (pytest, ruff, mypy) live in `.venv/`:
+```bash
+.venv/bin/pytest
+.venv/bin/ruff check src/ tests/
+.venv/bin/mypy src/
+```
+
+**Do not** use `.venv/bin/grounded-code-mcp` — always use the pipx-installed binary.
+
 ## Build & Test Commands
 
 ```bash
-# Install with dev dependencies
-pip install -e ".[dev]"
+# Create dev venv and install dev dependencies
+python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
 
 # Run tests
-pytest
+.venv/bin/pytest
 
 # Run with coverage
-pytest --cov=grounded_code_mcp
+.venv/bin/pytest --cov=grounded_code_mcp
 
 # Lint
-ruff check src/ tests/
+.venv/bin/ruff check src/ tests/
 
 # Type check
-mypy src/
+.venv/bin/mypy src/
 
 # Security scan
-bandit -r src/ -c pyproject.toml
+.venv/bin/bandit -r src/ -c pyproject.toml
 ```
 
-## CLI Commands
+## CLI Commands (via pipx)
 
 ```bash
 grounded-code-mcp ingest [--force] [--collection NAME] [PATH]
