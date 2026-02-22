@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import Any, Literal
 
 from fastmcp import FastMCP
 
@@ -344,7 +344,7 @@ def get_source_info(source_path: str) -> dict[str, Any]:
 
 def run_server(
     debug: bool = False,
-    transport: str | None = None,
+    transport: Literal["stdio", "sse", "streamable-http"] | None = None,
     host: str = "127.0.0.1",
     port: int = 8080,
 ) -> None:

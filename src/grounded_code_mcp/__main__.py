@@ -144,7 +144,7 @@ def serve(debug: bool, transport: str | None, host: str, port: int) -> None:
     if transport:
         console.print(f"Transport: {transport} on {host}:{port}")
 
-    run_server(debug=debug, transport=transport, host=host, port=port)
+    run_server(debug=debug, transport=transport, host=host, port=port)  # type: ignore[arg-type]
 
 
 @cli.command()
