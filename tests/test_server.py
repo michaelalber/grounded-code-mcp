@@ -20,6 +20,7 @@ from grounded_code_mcp.server import (
     _search_code_examples_impl,
     _search_knowledge_impl,
     initialize,
+    run_server,
 )
 from grounded_code_mcp.vectorstore import SearchResult
 
@@ -313,3 +314,50 @@ class TestInitialize:
             server_module._settings = None
             server_module._embedder = None
             server_module._manifest = None
+
+
+class TestRunServer:
+    """Tests for run_server() transport parameters."""
+
+    def test_run_server_default_uses_stdio(self) -> None:
+        """run_server() with no transport calls mcp.run() with no transport args."""
+        with (
+            patch("grounded_code_mcp.server.initialize") as mock_init,
+            patch("grounded_code_mcp.server.mcp") as mock_mcp,
+        ):
+            run_server()
+
+        mock_init.assert_called_once()
+        mock_mcp.run.assert_called_once_with()
+
+    def test_run_server_streamable_http_forwards_kwargs(self) -> None:
+        """run_server() forwards transport/host/port to mcp.run()."""
+        with (
+            patch("grounded_code_mcp.server.initialize"),
+            patch("grounded_code_mcp.server.mcp") as mock_mcp,
+        ):
+            run_server(
+                transport="streamable-http",
+                host="0.0.0.0",  # noqa: S104 — testing explicit opt-in
+                port=8080,
+            )
+
+        mock_mcp.run.assert_called_once_with(
+            transport="streamable-http",
+            host="0.0.0.0",  # noqa: S104 — testing explicit opt-in
+            port=8080,
+        )
+
+    def test_run_server_streamable_http_default_host(self) -> None:
+        """run_server() defaults host to 127.0.0.1 for streamable-http."""
+        with (
+            patch("grounded_code_mcp.server.initialize"),
+            patch("grounded_code_mcp.server.mcp") as mock_mcp,
+        ):
+            run_server(transport="streamable-http")
+
+        mock_mcp.run.assert_called_once_with(
+            transport="streamable-http",
+            host="127.0.0.1",
+            port=8080,
+        )

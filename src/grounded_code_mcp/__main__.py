@@ -126,15 +126,25 @@ def status() -> None:
 
 @cli.command()
 @click.option("--debug", is_flag=True, help="Enable debug mode")
-def serve(debug: bool) -> None:
+@click.option(
+    "--transport",
+    type=click.Choice(["stdio", "sse", "streamable-http"]),
+    default=None,
+    help="Transport protocol (default: stdio)",
+)
+@click.option("--host", default="127.0.0.1", help="Host to bind HTTP transport (default: 127.0.0.1)")
+@click.option("--port", default=8080, type=int, help="Port for HTTP transport (default: 8080)")
+def serve(debug: bool, transport: str | None, host: str, port: int) -> None:
     """Start the MCP server."""
     from grounded_code_mcp.server import run_server
 
     console.print("[bold]Starting MCP server...[/bold]")
     if debug:
         console.print("[yellow]Debug mode enabled[/yellow]")
+    if transport:
+        console.print(f"Transport: {transport} on {host}:{port}")
 
-    run_server(debug=debug)
+    run_server(debug=debug, transport=transport, host=host, port=port)
 
 
 @cli.command()

@@ -342,11 +342,20 @@ def get_source_info(source_path: str) -> dict[str, Any]:
     return _get_source_info_impl(source_path)
 
 
-def run_server(debug: bool = False) -> None:
+def run_server(
+    debug: bool = False,
+    transport: str | None = None,
+    host: str = "127.0.0.1",
+    port: int = 8080,
+) -> None:
     """Run the MCP server.
 
     Args:
         debug: Enable debug mode.
+        transport: Transport protocol ("stdio", "sse", "streamable-http").
+            Defaults to None (stdio).
+        host: Host to bind HTTP transport. Defaults to "127.0.0.1".
+        port: Port for HTTP transport. Defaults to 8080.
     """
     if debug:
         logging.basicConfig(level=logging.DEBUG)
@@ -354,4 +363,8 @@ def run_server(debug: bool = False) -> None:
         logging.basicConfig(level=logging.INFO)
 
     initialize()
-    mcp.run()
+
+    if transport:
+        mcp.run(transport=transport, host=host, port=port)
+    else:
+        mcp.run()
