@@ -139,7 +139,7 @@ class EmbeddingClient:
             # Support both old dict API and new typed API from ollama client
             models_list = getattr(models_response, "models", None)
             if models_list is None:
-                models_list = models_response.get("models", [])  # type: ignore[union-attr]
+                models_list = models_response.get("models", [])
 
             model_names: list[str] = []
             for m in models_list:

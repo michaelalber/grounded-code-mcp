@@ -179,7 +179,7 @@ class TestEmbeddingClient:
         mock_ollama.embed.return_value = {"embeddings": [[0.1, 0.2, 0.3]]}
 
         with patch.object(client, "_client", mock_ollama):
-            result = client.embed("document content", is_query=False)
+            client.embed("document content", is_query=False)
 
         mock_ollama.embed.assert_called_once_with(model="test-model", input="document content")
 
