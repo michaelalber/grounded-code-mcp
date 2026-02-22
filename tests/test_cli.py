@@ -311,7 +311,9 @@ class TestServeCommand:
 
         assert result.exit_code == 0
         assert "Starting MCP server" in result.output
-        mock_run_server.assert_called_once_with(debug=False)
+        mock_run_server.assert_called_once_with(
+            debug=False, transport=None, host="127.0.0.1", port=8080
+        )
 
     @patch("grounded_code_mcp.server.run_server")
     def test_serve_debug_mode(self, mock_run_server: MagicMock) -> None:
@@ -321,7 +323,9 @@ class TestServeCommand:
 
         assert result.exit_code == 0
         assert "Debug mode enabled" in result.output
-        mock_run_server.assert_called_once_with(debug=True)
+        mock_run_server.assert_called_once_with(
+            debug=True, transport=None, host="127.0.0.1", port=8080
+        )
 
 
 class TestSearchCommand:
