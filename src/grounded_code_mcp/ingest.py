@@ -124,16 +124,17 @@ class IngestionPipeline:
         # Process each file
         for file_path in files:
             try:
-                result = self._process_file(
+                status, chunk_count = self._process_file(
                     file_path,
                     collection=collection,
                     force=force,
                 )
-                if result == "ingested":
+                if status == "ingested":
                     stats.files_ingested += 1
-                elif result == "skipped":
+                    stats.chunks_created += chunk_count
+                elif status == "skipped":
                     stats.files_skipped += 1
-                elif result == "failed":
+                elif status == "failed":
                     stats.files_failed += 1
             except Exception as e:
                 logger.exception("Failed to process %s", file_path)
@@ -142,9 +143,6 @@ class IngestionPipeline:
 
         # Save manifest
         self.manifest.save(self.settings.knowledge_base.manifest_path)
-
-        # Compute chunk stats
-        stats.chunks_created = sum(entry.chunk_count for entry in self.manifest.sources.values())
 
         logger.info(
             "Ingestion complete: %d ingested, %d skipped, %d failed",
@@ -161,7 +159,7 @@ class IngestionPipeline:
         *,
         collection: str | None = None,
         force: bool = False,
-    ) -> str:
+    ) -> tuple[str, int]:
         """Process a single file.
 
         Args:
@@ -170,10 +168,15 @@ class IngestionPipeline:
             force: If True, re-ingest regardless of hash.
 
         Returns:
+            Tuple of (status, chunk_count) where status is
             "ingested", "skipped", or "failed".
         """
         relative_path = self._get_relative_path(path)
-        collection_name = collection or self.settings.get_collection_name(path)
+        collection_name = (
+            f"{self.settings.vectorstore.collection_prefix}{collection}"
+            if collection
+            else self.settings.get_collection_name(path)
+        )
 
         # Check if file needs processing (use relative path for manifest lookup)
         existing_entry = self.manifest.get_entry(str(relative_path))
@@ -181,7 +184,7 @@ class IngestionPipeline:
             current_hash = compute_sha256(path)
             if not existing_entry.has_changed(current_hash):
                 logger.debug("Skipping unchanged file: %s", relative_path)
-                return "skipped"
+                return ("skipped", 0)
 
         logger.info("Processing: %s", relative_path)
 
@@ -195,17 +198,17 @@ class IngestionPipeline:
             parsed = self.parser.parse(path)
         except (UnsupportedFormatError, DocumentParseError) as e:
             logger.warning("Failed to parse %s: %s", path, e)
-            return "failed"
+            return ("failed", 0)
 
         if parsed.is_empty:
             logger.warning("Empty document: %s", path)
-            return "skipped"
+            return ("skipped", 0)
 
         # Chunk document
         chunks = self.chunker.chunk(parsed.content, source_path=str(relative_path))
         if not chunks:
             logger.warning("No chunks created for: %s", path)
-            return "skipped"
+            return ("skipped", 0)
 
         logger.debug("Created %d chunks", len(chunks))
 
@@ -236,7 +239,7 @@ class IngestionPipeline:
         )
         self.manifest.add_entry(entry)
 
-        return "ingested"
+        return ("ingested", len(chunks))
 
     def _get_relative_path(self, path: Path) -> Path:
         """Get path relative to sources directory.
