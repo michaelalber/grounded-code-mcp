@@ -92,7 +92,7 @@ def _search_knowledge_impl(
     query: str,
     collection: str | None = None,
     n_results: int = 5,
-    min_score: float = 0.7,
+    min_score: float = 0.5,
 ) -> list[dict[str, Any]]:
     """Search the knowledge base for relevant documentation."""
     settings = get_settings()
@@ -271,7 +271,7 @@ def search_knowledge(
     query: str,
     collection: str | None = None,
     n_results: int = 5,
-    min_score: float = 0.7,
+    min_score: float = 0.5,
 ) -> list[dict[str, Any]]:
     """Search the knowledge base for relevant documentation.
 
