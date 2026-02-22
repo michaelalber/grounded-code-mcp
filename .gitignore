@@ -58,5 +58,7 @@ Thumbs.db
 # Project data
 .data/
 .grounded-code-mcp/
+sources/*
+!sources/.gitkeep
 logs/
 uv.lock
