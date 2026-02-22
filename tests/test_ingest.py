@@ -187,6 +187,56 @@ class TestIngestionPipeline:
         result = pipeline.remove_source("nonexistent.md")
         assert result is False
 
+    def test_chunks_created_reports_current_run_only(
+        self,
+        pipeline: IngestionPipeline,
+        settings: Settings,
+        mock_embedder: MagicMock,
+    ) -> None:
+        """Test that chunks_created counts only chunks from the current run, not cumulative."""
+        # Arrange: create two files
+        file_a = settings.knowledge_base.sources_dir / "file_a.md"
+        file_a.write_text("# File A\n\nContent for file A.")
+        file_b = settings.knowledge_base.sources_dir / "file_b.md"
+        file_b.write_text("# File B\n\nContent for file B.")
+
+        # Act: ingest each file separately
+        stats_a = pipeline.ingest(file_a)
+        chunks_a = stats_a.chunks_created
+        assert chunks_a > 0
+
+        stats_b = pipeline.ingest(file_b)
+        chunks_b = stats_b.chunks_created
+        assert chunks_b > 0
+
+        # Assert: sum of per-run counts should equal total manifest chunks.
+        # If chunks_created is cumulative (the bug), chunks_b would include
+        # file_a's chunks, making the sum too large.
+        total_manifest_chunks = sum(
+            e.chunk_count for e in pipeline.manifest.sources.values()
+        )
+        assert chunks_a + chunks_b == total_manifest_chunks
+
+    def test_user_provided_collection_gets_prefix(
+        self,
+        pipeline: IngestionPipeline,
+        settings: Settings,
+        mock_embedder: MagicMock,
+    ) -> None:
+        """Test that user-provided collection name gets the configured prefix."""
+        # Arrange
+        test_file = settings.knowledge_base.sources_dir / "test.md"
+        test_file.write_text("# Test Document\n\nSome content here.")
+
+        # Act: ingest with explicit collection name
+        pipeline.ingest(test_file, collection="mycoll")
+
+        # Assert: manifest entry should have prefixed collection name
+        entry = pipeline.manifest.get_entry(Path("test.md"))
+        assert entry is not None
+        expected_prefix = settings.vectorstore.collection_prefix
+        assert entry.collection == f"{expected_prefix}mycoll"
+
 
 class TestRebuildCollection:
     """Tests for IngestionPipeline.rebuild_collection."""
