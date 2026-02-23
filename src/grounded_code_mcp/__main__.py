@@ -132,7 +132,9 @@ def status() -> None:
     default=None,
     help="Transport protocol (default: stdio)",
 )
-@click.option("--host", default="127.0.0.1", help="Host to bind HTTP transport (default: 127.0.0.1)")
+@click.option(
+    "--host", default="127.0.0.1", help="Host to bind HTTP transport (default: 127.0.0.1)"
+)
 @click.option("--port", default=8080, type=int, help="Port for HTTP transport (default: 8080)")
 def serve(debug: bool, transport: str | None, host: str, port: int) -> None:
     """Start the MCP server."""

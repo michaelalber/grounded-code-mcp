@@ -212,9 +212,7 @@ class TestIngestionPipeline:
         # Assert: sum of per-run counts should equal total manifest chunks.
         # If chunks_created is cumulative (the bug), chunks_b would include
         # file_a's chunks, making the sum too large.
-        total_manifest_chunks = sum(
-            e.chunk_count for e in pipeline.manifest.sources.values()
-        )
+        total_manifest_chunks = sum(e.chunk_count for e in pipeline.manifest.sources.values())
         assert chunks_a + chunks_b == total_manifest_chunks
 
     def test_user_provided_collection_gets_prefix(

@@ -243,7 +243,10 @@ class TestStatusCommand:
         mock_settings_cls.load.return_value = mock_settings
 
         mock_embedder = MagicMock()
-        mock_embedder.health_check.return_value = {"healthy": True, "model": "snowflake-arctic-embed2"}
+        mock_embedder.health_check.return_value = {
+            "healthy": True,
+            "model": "snowflake-arctic-embed2",
+        }
         mock_from_settings.return_value = mock_embedder
 
         mock_manifest = MagicMock()

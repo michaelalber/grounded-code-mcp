@@ -143,7 +143,9 @@ class EmbeddingClient:
 
             model_names: list[str] = []
             for m in models_list:
-                name = getattr(m, "model", None) or (m.get("name", "") if isinstance(m, dict) else "")
+                name = getattr(m, "model", None) or (
+                    m.get("name", "") if isinstance(m, dict) else ""
+                )
                 model_names.append(name)
 
             # Match against "model" or "model:latest"
