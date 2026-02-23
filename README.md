@@ -170,20 +170,36 @@ Documents are organized into collections based on directory structure:
 ## Development
 
 ```bash
+# Create dev venv and install dev dependencies
+python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
+```
+
+### Quality Checks
+
+```bash
 # Run tests
-pytest
+.venv/bin/pytest
 
 # Run with coverage
-pytest --cov=grounded_code_mcp
+.venv/bin/pytest --cov=grounded_code_mcp
+
+# Formatting check (apply formatting by removing --check)
+.venv/bin/ruff format --check src/ tests/
 
 # Lint
-ruff check src/ tests/
+.venv/bin/ruff check src/ tests/
 
 # Type check
-mypy src/
+.venv/bin/mypy src/
 
 # Security scan
-bandit -r src/ -c pyproject.toml
+.venv/bin/bandit -r src/ -c pyproject.toml
+```
+
+Run all checks at once:
+
+```bash
+.venv/bin/pytest && .venv/bin/ruff format --check src/ tests/ && .venv/bin/ruff check src/ tests/ && .venv/bin/mypy src/ && .venv/bin/bandit -r src/ -c pyproject.toml
 ```
 
 ## Tech Stack
