@@ -1,6 +1,7 @@
-# AGENTS.md
+# AGENTS.md — grounded-code-mcp
 
-This file contains guidelines for agentic coding agents operating in this repository.
+> Global rules (TDD, security, quality gates, Python standards, AI behavior) are in
+> `~/.config/opencode/AGENTS.md` and apply here automatically.
 
 ## Runtime vs Development
 
@@ -101,47 +102,26 @@ python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
 - Use async/await syntax for async operations
 - Follow existing async patterns in the codebase
 
-## Development Principles
+## Project-Specific Security
 
-### TDD
-1. **Never write production code without a failing test first**
-2. Cycle: RED (write failing test) → GREEN (minimal code to pass) → REFACTOR
-3. Run tests before committing: `pytest`
-4. Coverage target: 80% minimum for business logic, 95% for security-critical code
-
-### Security-By-Design
-- Validate all inputs at system boundaries
-- Validate file extensions against allowlist (`.pdf`, `.epub`, `.md`, `.txt`, `.rst`, `.html`)
+In addition to global security rules:
+- Validate file extensions against allowlist: `.pdf`, `.epub`, `.md`, `.txt`, `.rst`, `.html`
 - Verify MIME type via magic bytes or UTF-8 validation
 - Enforce file size limits (100MB configurable) and sanitize filenames
 - Bind HTTP transport to `127.0.0.1` by default
-- Never include secrets in source code — use environment variables
-- All rules align with [OWASP Top 10 (2025)](https://owasp.org/Top10/2025/) guidance
-
-### YAGNI (You Aren't Gonna Need It)
-- Start with direct implementations
-- Add abstractions only when complexity demands it
-- Create interfaces only when multiple implementations exist
-- No dependency injection containers
-- No repository pattern — direct JSON read/write
-- No plugin architecture — simple match/case on file extension
-
-### Quality Gates
-- **Cyclomatic Complexity**: Methods <10, classes <20
-- **Code Coverage**: 80% minimum for business logic, 95% for security-critical code
-- **Maintainability Index**: Target 70+
-- **Code Duplication**: Maximum 3%
 
 ## Git Workflow — Atomic TDD Commits
 
-- **Separate test and implementation commits** to create verifiable RED→GREEN evidence
-- RED phase: Write failing test, commit with `test: add failing test for <behavior>`
-- GREEN phase: Write minimal code to pass, commit with `feat|fix: <description>`
-- REFACTOR phase: Improve structure (tests stay green), commit with `refactor: <description>`
+This project enforces stricter commit discipline than the global standard to create
+verifiable RED→GREEN evidence:
+
+- **Separate test and implementation commits**
+- RED phase: Write failing test → commit with `test: add failing test for <behavior>`
+- GREEN phase: Write minimal code to pass → commit with `feat|fix: <description>`
+- REFACTOR phase: Improve structure (tests stay green) → commit with `refactor: <description>`
 - Never combine new tests and new production code in a single commit
 - Don't commit failing tests to shared branches (RED commits are for local/feature branches)
-- Commit message format: `test|feat|fix|refactor|style|ci|docs: brief description`
-- Run `pytest` before every commit
+- Run `.venv/bin/pytest` before every commit
 
 ## Tools
 
@@ -157,8 +137,8 @@ python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
 2. Run `pytest -k <test_name>` to confirm it fails (RED)
 3. Commit: `git commit -m "test: add failing test for <behavior>"`
 4. Write minimal code to make the test pass (GREEN)
-5. Run full test suite: `pytest`
-6. Run linters: `ruff check src/ tests/ && mypy src/`
+5. Run full test suite: `.venv/bin/pytest`
+6. Run linters: `.venv/bin/ruff check src/ tests/ && .venv/bin/mypy src/`
 7. Commit: `git commit -m "feat: <description>"`
 8. Refactor if needed while keeping tests green (REFACTOR)
 9. Commit: `git commit -m "refactor: <description>"`
