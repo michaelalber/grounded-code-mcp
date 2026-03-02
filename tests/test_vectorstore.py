@@ -228,6 +228,29 @@ class TestQdrantStore:
             QdrantStore(url="http://localhost:6333")
             mock_client_cls.assert_called_once_with(url="http://localhost:6333")
 
+    def test_add_chunks_batches_large_payloads(self) -> None:
+        """add_chunks must upsert in batches to stay under HTTP payload limits."""
+        with patch("grounded_code_mcp.vectorstore.QdrantClient") as mock_client_cls:
+            mock_client = mock_client_cls.return_value
+            mock_client.collection_exists.return_value = True
+            store = QdrantStore(url="http://localhost:6333")
+
+            chunks = [
+                Chunk(
+                    chunk_id=str(uuid.uuid4()),
+                    content=f"chunk {i}",
+                    chunk_index=i,
+                    source_path="test.md",
+                )
+                for i in range(150)
+            ]
+            embeddings = [[0.1] * 128 for _ in range(150)]
+
+            store.add_chunks("test_collection", chunks, embeddings)
+
+            # 150 chunks with batch size 100 → 2 upsert calls (100 + 50)
+            assert mock_client.upsert.call_count == 2
+
 
 class TestChromaStore:
     """Tests for ChromaStore implementation."""
