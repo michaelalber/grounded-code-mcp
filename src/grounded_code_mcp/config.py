@@ -50,6 +50,7 @@ class VectorStoreSettings(BaseModel):
 
     provider: str = Field(default="qdrant")
     collection_prefix: str = Field(default="grounded_")
+    qdrant_url: str | None = Field(default=None)
 
 
 class Settings(BaseModel):
