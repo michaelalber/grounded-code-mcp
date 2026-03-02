@@ -8,6 +8,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from qdrant_client import QdrantClient
+
 if TYPE_CHECKING:
     from grounded_code_mcp.chunking import Chunk
     from grounded_code_mcp.config import Settings
@@ -144,19 +146,22 @@ class VectorStore(ABC):
 class QdrantStore(VectorStore):
     """Qdrant vector store implementation."""
 
-    def __init__(self, path: Path | str | None = None) -> None:
+    def __init__(self, path: Path | str | None = None, *, url: str | None = None) -> None:
         """Initialize Qdrant store.
 
         Args:
             path: Path for persistent storage. If None, uses in-memory storage.
+            url: HTTP URL for a running Qdrant server (e.g. Docker). Takes
+                 precedence over ``path`` when provided.
         """
-        from qdrant_client import QdrantClient
         from qdrant_client.models import Distance, VectorParams
 
         self._distance = Distance
         self._vector_params = VectorParams
 
-        if path is not None:
+        if url is not None:
+            self._client = QdrantClient(url=url)
+        elif path is not None:
             self._client = QdrantClient(path=str(path))
         else:
             self._client = QdrantClient(":memory:")
@@ -467,6 +472,9 @@ def create_vector_store(settings: Settings) -> VectorStore:
     data_path = settings.knowledge_base.data_dir
 
     if provider == "qdrant":
+        qdrant_url = settings.vectorstore.qdrant_url
+        if qdrant_url:
+            return QdrantStore(url=qdrant_url)
         store_path = data_path / "qdrant"
         store_path.mkdir(parents=True, exist_ok=True)
         return QdrantStore(path=store_path)
