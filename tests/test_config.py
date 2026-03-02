@@ -66,6 +66,16 @@ class TestVectorStoreSettings:
         assert settings.provider == "qdrant"
         assert settings.collection_prefix == "grounded_"
 
+    def test_qdrant_url_defaults_to_none(self) -> None:
+        settings = VectorStoreSettings()
+        assert settings.qdrant_url is None
+
+    def test_qdrant_url_from_toml(self, tmp_path: Path) -> None:
+        toml = tmp_path / "config.toml"
+        toml.write_text('[vectorstore]\nqdrant_url = "http://localhost:6333"\n')
+        settings = Settings.from_toml(toml)
+        assert settings.vectorstore.qdrant_url == "http://localhost:6333"
+
 
 class TestSettings:
     """Tests for Settings."""

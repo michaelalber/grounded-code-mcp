@@ -2,6 +2,7 @@
 
 import uuid
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -222,6 +223,11 @@ class TestQdrantStore:
         assert store2.collection_exists("persistent")
         assert store2.collection_count("persistent") == 2
 
+    def test_init_with_url_uses_http_client(self) -> None:
+        with patch("grounded_code_mcp.vectorstore.QdrantClient") as mock_client_cls:
+            QdrantStore(url="http://localhost:6333")
+            mock_client_cls.assert_called_once_with(url="http://localhost:6333")
+
 
 class TestChromaStore:
     """Tests for ChromaStore implementation."""
@@ -309,6 +315,22 @@ class TestChromaStore:
 
 class TestCreateVectorStore:
     """Tests for create_vector_store factory function."""
+
+    def test_creates_qdrant_store_with_url(self, tmp_path: Path) -> None:
+        from grounded_code_mcp.config import (
+            KnowledgeBaseSettings,
+            Settings,
+            VectorStoreSettings,
+        )
+
+        settings = Settings(
+            knowledge_base=KnowledgeBaseSettings(data_dir=tmp_path),
+            vectorstore=VectorStoreSettings(provider="qdrant", qdrant_url="http://localhost:6333"),
+        )
+        with patch("grounded_code_mcp.vectorstore.QdrantClient") as mock_client_cls:
+            store = create_vector_store(settings)
+            assert isinstance(store, QdrantStore)
+            mock_client_cls.assert_called_once_with(url="http://localhost:6333")
 
     def test_creates_qdrant_by_default(self, temp_dir: Path) -> None:
         """Test that Qdrant is created by default."""
