@@ -10,6 +10,8 @@ from typing import TYPE_CHECKING, Any
 
 from qdrant_client import QdrantClient
 
+_UPSERT_BATCH_SIZE = 100  # Stay well under Qdrant's 32 MB HTTP payload limit
+
 if TYPE_CHECKING:
     from grounded_code_mcp.chunking import Chunk
     from grounded_code_mcp.config import Settings
@@ -224,7 +226,8 @@ class QdrantStore(VectorStore):
                 )
             )
 
-        self._client.upsert(collection_name=collection, points=points)
+        for i in range(0, len(points), _UPSERT_BATCH_SIZE):
+            self._client.upsert(collection_name=collection, points=points[i : i + _UPSERT_BATCH_SIZE])
 
     def delete_chunks(self, collection: str, chunk_ids: list[str]) -> None:
         """Delete chunks by ID."""
