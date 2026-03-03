@@ -227,7 +227,9 @@ class QdrantStore(VectorStore):
             )
 
         for i in range(0, len(points), _UPSERT_BATCH_SIZE):
-            self._client.upsert(collection_name=collection, points=points[i : i + _UPSERT_BATCH_SIZE])
+            self._client.upsert(
+                collection_name=collection, points=points[i : i + _UPSERT_BATCH_SIZE]
+            )
 
     def delete_chunks(self, collection: str, chunk_ids: list[str]) -> None:
         """Delete chunks by ID."""
