@@ -33,7 +33,7 @@ max_code_chunk_size = 3000
 provider = "qdrant"
 # Prefix for collection names
 collection_prefix = "grounded_"
-# qdrant_url = "http://localhost:6333"  # Uncomment to use Qdrant in Docker
+qdrant_url = "http://localhost:6333"  # Qdrant running in Docker
 
 # Collection mappings from source directories
 [collections]
