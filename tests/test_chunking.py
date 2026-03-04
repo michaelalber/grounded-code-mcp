@@ -311,6 +311,17 @@ plain code block
         # Should split since total exceeds max_code_chunk_size
         assert len(code_chunks) >= 2
 
+    def test_oversized_single_paragraph_is_split(self) -> None:
+        """Test that a single paragraph exceeding text_chunk_max_size is split."""
+        chunker = DocumentChunker(text_chunk_size=100, text_chunk_max_size=150)
+        # One giant paragraph with no double newlines
+        giant_para = "word " * 200  # ~1000 chars, no paragraph breaks
+        result = chunker.chunk(giant_para, "test.md")
+
+        assert len(result) > 1
+        for chunk in result:
+            assert len(chunk.content) <= 150
+
     def test_from_settings(self) -> None:
         """Test creating chunker from settings."""
         from grounded_code_mcp.config import ChunkingSettings
