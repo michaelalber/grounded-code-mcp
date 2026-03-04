@@ -534,6 +534,47 @@ class DocumentChunker:
                 heading_text = heading_match.group(2).strip()
                 ctx.update_headings(level, heading_text)
 
+            # If a single paragraph is too large, split it at char boundaries
+            if len(para) > self.text_chunk_max_size:
+                if current_chunk.strip():
+                    chunks.append(
+                        Chunk(
+                            chunk_id=ctx.next_chunk_id(),
+                            content=current_chunk,
+                            chunk_index=ctx.current_index - 1,
+                            start_char=current_start,
+                            end_char=current_start + len(current_chunk),
+                            heading_context=ctx.get_heading_context(),
+                            source_path=ctx.source_path,
+                        )
+                    )
+                    current_chunk = ""
+                para_offset = start_char + text.find(para)
+                pos = 0
+                while pos < len(para):
+                    slice_end = min(pos + self.text_chunk_max_size, len(para))
+                    # Break at a word boundary if possible
+                    if slice_end < len(para):
+                        boundary = para.rfind(" ", pos, slice_end)
+                        if boundary > pos:
+                            slice_end = boundary
+                    segment = para[pos:slice_end].strip()
+                    if segment:
+                        chunks.append(
+                            Chunk(
+                                chunk_id=ctx.next_chunk_id(),
+                                content=segment,
+                                chunk_index=ctx.current_index - 1,
+                                start_char=para_offset + pos,
+                                end_char=para_offset + slice_end,
+                                heading_context=ctx.get_heading_context(),
+                                source_path=ctx.source_path,
+                            )
+                        )
+                    pos = slice_end
+                current_start = start_char + text.find(para) + len(para)
+                continue
+
             # If adding this paragraph exceeds max size, flush current chunk
             if current_chunk and len(current_chunk) + len(para) + 2 > self.text_chunk_max_size:
                 chunks.append(
