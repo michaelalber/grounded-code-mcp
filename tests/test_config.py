@@ -65,6 +65,12 @@ class TestVectorStoreSettings:
         settings = VectorStoreSettings()
         assert settings.provider == "qdrant"
         assert settings.collection_prefix == "grounded_"
+        assert settings.qdrant_url is None
+
+    def test_qdrant_url_configurable(self) -> None:
+        """Test that qdrant_url can be set for Docker/remote connections."""
+        settings = VectorStoreSettings(qdrant_url="http://localhost:6333")
+        assert settings.qdrant_url == "http://localhost:6333"
 
     def test_qdrant_url_defaults_to_none(self) -> None:
         settings = VectorStoreSettings()

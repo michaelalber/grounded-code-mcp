@@ -402,3 +402,4 @@ class TestCreateVectorStore:
 
         store = create_vector_store(settings)
         assert isinstance(store, QdrantStore)
+

@@ -476,8 +476,9 @@ def create_vector_store(settings: Settings) -> VectorStore:
     provider = settings.vectorstore.provider.lower()
     data_path = settings.knowledge_base.data_dir
 
+    qdrant_url = settings.vectorstore.qdrant_url
+
     if provider == "qdrant":
-        qdrant_url = settings.vectorstore.qdrant_url
         if qdrant_url:
             return QdrantStore(url=qdrant_url)
         store_path = data_path / "qdrant"
@@ -489,6 +490,8 @@ def create_vector_store(settings: Settings) -> VectorStore:
         return ChromaStore(path=store_path)
     else:
         logger.warning("Unknown provider '%s', defaulting to Qdrant", provider)
+        if qdrant_url:
+            return QdrantStore(url=qdrant_url)
         store_path = data_path / "qdrant"
         store_path.mkdir(parents=True, exist_ok=True)
         return QdrantStore(path=store_path)
