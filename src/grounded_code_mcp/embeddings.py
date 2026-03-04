@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-_CHARS_PER_TOKEN_ESTIMATE = 3
+_CHARS_PER_TOKEN_ESTIMATE = 2  # Conservative: keeps truncated text safely under token limit for dense PDF/code content
 
 
 class OllamaConnectionError(Exception):
