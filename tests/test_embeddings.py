@@ -245,9 +245,13 @@ class TestEmbeddingClient:
         assert client.context_length == 4096
 
     def test_max_chars_property(self) -> None:
-        """Test max_chars = context_length * _CHARS_PER_TOKEN_ESTIMATE."""
+        """Test max_chars = context_length * _CHARS_PER_TOKEN_ESTIMATE.
+
+        Uses 2 chars/token (conservative) so truncated text stays safely under
+        the model's token limit even for dense technical/PDF content.
+        """
         client = EmbeddingClient(context_length=8192)
-        assert client.max_chars == 8192 * 3  # 24576
+        assert client.max_chars == 8192 * 2  # 16384
 
     def test_truncate_text_short(self) -> None:
         """Text under limit passes through unchanged."""
@@ -258,7 +262,7 @@ class TestEmbeddingClient:
     def test_truncate_text_long(self) -> None:
         """Text over limit is truncated to max_chars."""
         client = EmbeddingClient(context_length=100)
-        max_chars = 100 * 3  # 300
+        max_chars = 100 * 2  # 200
         long_text = "x" * 500
         result = client._truncate_text(long_text)
         assert len(result) == max_chars
@@ -266,7 +270,7 @@ class TestEmbeddingClient:
     def test_embed_truncates_long_text(self) -> None:
         """embed() truncates before sending to Ollama."""
         client = EmbeddingClient(model="test-model", context_length=100)
-        max_chars = 100 * 3  # 300
+        max_chars = 100 * 2  # 200
         long_text = "a" * 500
 
         mock_ollama = MagicMock()
@@ -282,7 +286,7 @@ class TestEmbeddingClient:
     def test_embed_many_truncates_long_texts(self) -> None:
         """embed_many() truncates each text before sending to Ollama."""
         client = EmbeddingClient(model="test-model", context_length=100)
-        max_chars = 100 * 3  # 300
+        max_chars = 100 * 2  # 200
         texts = ["b" * 500, "short"]
 
         mock_ollama = MagicMock()
