@@ -57,6 +57,9 @@ Thumbs.db
 # Logs
 *.log
 
+# One-off scripts
+download_docs.py
+
 # Project data
 .data/
 .grounded-code-mcp/
