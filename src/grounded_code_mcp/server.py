@@ -92,7 +92,7 @@ def _search_knowledge_impl(
     query: str,
     collection: str | None = None,
     n_results: int = 5,
-    min_score: float = 0.5,
+    min_score: float = 0.3,
 ) -> list[dict[str, Any]]:
     """Search the knowledge base for relevant documentation."""
     settings = get_settings()
@@ -171,7 +171,7 @@ def _search_code_examples_impl(
                 coll,
                 query_embedding,
                 n_results=n_results,
-                min_score=0.5,
+                min_score=0.3,
                 filter_metadata=filter_metadata,
             )
             all_results.extend(results)
@@ -271,7 +271,7 @@ def search_knowledge(
     query: str,
     collection: str | None = None,
     n_results: int = 5,
-    min_score: float = 0.5,
+    min_score: float = 0.3,
 ) -> list[dict[str, Any]]:
     """Search the knowledge base for relevant documentation.
 
