@@ -207,6 +207,31 @@ class TestDocumentParser:
 
         assert len(results) == 1
 
+    def test_parse_asciidoc_directly_without_docling(self, temp_dir: Path) -> None:
+        """Test that .asciidoc files are read directly, bypassing Docling."""
+        adoc_file = temp_dir / "test.asciidoc"
+        adoc_file.write_text("= My Title\n\nSome content here.")
+
+        parser = DocumentParser()
+        # Patching _get_converter to raise proves Docling is never called
+        with patch.object(parser, "_get_converter", side_effect=RuntimeError("Docling should not be called")):
+            result = parser.parse(adoc_file)
+
+        assert "Some content here." in result.content
+        assert result.file_type == "asciidoc"
+
+    def test_parse_adoc_extension_directly_without_docling(self, temp_dir: Path) -> None:
+        """Test that .adoc files are read directly, bypassing Docling."""
+        adoc_file = temp_dir / "test.adoc"
+        adoc_file.write_text("= Chapter Title\n\nBody text.")
+
+        parser = DocumentParser()
+        with patch.object(parser, "_get_converter", side_effect=RuntimeError("Docling should not be called")):
+            result = parser.parse(adoc_file)
+
+        assert "Body text." in result.content
+        assert result.file_type == "asciidoc"
+
 
 class TestScanDirectory:
     """Tests for scan_directory function."""
