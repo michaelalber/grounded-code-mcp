@@ -117,15 +117,72 @@ class TestSettings:
         """Test load() with explicit path."""
         config_path = temp_dir / "myconfig.toml"
         config_path.write_text(sample_config_toml)
+        no_user_cfg = temp_dir / "no-user.toml"
 
-        settings = Settings.load(config_path)
+        settings = Settings.load(config_path, user_config_path=no_user_cfg)
         assert settings.ollama.model == "snowflake-arctic-embed2"
 
     def test_load_fallback_to_defaults(self, temp_dir: Path) -> None:
         """Test load() falls back to defaults when no config found."""
-        # Use a non-existent path to force defaults
-        settings = Settings.load(temp_dir / "nonexistent.toml")
+        no_user_cfg = temp_dir / "no-user.toml"
+        settings = Settings.load(temp_dir / "nonexistent.toml", user_config_path=no_user_cfg)
         assert settings.ollama.model == "snowflake-arctic-embed2"
+
+    def test_load_merges_user_config_over_project(self, temp_dir: Path, sample_config_toml: str) -> None:
+        """User config values override project config values."""
+        project_cfg = temp_dir / "config.toml"
+        project_cfg.write_text(sample_config_toml)
+
+        user_cfg = temp_dir / "user.toml"
+        user_cfg.write_text('[ollama]\nhost = "http://remote-host:11434"\n')
+
+        settings = Settings.load(project_cfg, user_config_path=user_cfg)
+        assert settings.ollama.host == "http://remote-host:11434"
+        assert settings.ollama.model == "snowflake-arctic-embed2"  # project default kept
+
+    def test_load_merges_collections_union(self, temp_dir: Path, sample_config_toml: str) -> None:
+        """Collections from project and user config are merged (union), not replaced."""
+        project_cfg = temp_dir / "config.toml"
+        project_cfg.write_text(
+            sample_config_toml + '\n[collections]\n"sources/internal" = "internal"\n'
+        )
+
+        user_cfg = temp_dir / "user.toml"
+        user_cfg.write_text('[collections]\n"sources/custom" = "my_docs"\n')
+
+        settings = Settings.load(project_cfg, user_config_path=user_cfg)
+        assert settings.collections["sources/internal"] == "internal"
+        assert settings.collections["sources/custom"] == "my_docs"
+
+    def test_load_user_config_without_project_config(self, temp_dir: Path) -> None:
+        """User config alone works when no project config is found."""
+        user_cfg = temp_dir / "user.toml"
+        user_cfg.write_text('[vectorstore]\nqdrant_url = "http://localhost:6333"\n')
+
+        settings = Settings.load(
+            temp_dir / "nonexistent.toml", user_config_path=user_cfg
+        )
+        assert settings.vectorstore.qdrant_url == "http://localhost:6333"
+
+    def test_deep_merge_scalar_override(self) -> None:
+        """Scalar values in override replace base values."""
+        result = Settings._deep_merge({"a": 1, "b": 2}, {"b": 99, "c": 3})
+        assert result == {"a": 1, "b": 99, "c": 3}
+
+    def test_deep_merge_nested_dicts_merged(self) -> None:
+        """Nested dicts are merged recursively, not replaced wholesale."""
+        base = {"ollama": {"host": "http://localhost", "model": "m1"}}
+        override = {"ollama": {"host": "http://remote"}}
+        result = Settings._deep_merge(base, override)
+        assert result["ollama"]["host"] == "http://remote"
+        assert result["ollama"]["model"] == "m1"  # preserved from base
+
+    def test_deep_merge_collections_combined(self) -> None:
+        """[collections] dicts from base and override are combined."""
+        base = {"collections": {"sources/a": "col_a"}}
+        override = {"collections": {"sources/b": "col_b"}}
+        result = Settings._deep_merge(base, override)
+        assert result["collections"] == {"sources/a": "col_a", "sources/b": "col_b"}
 
     def test_get_collection_name_from_mapping(self) -> None:
         """Test collection name from explicit mapping."""

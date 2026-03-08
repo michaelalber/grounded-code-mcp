@@ -80,38 +80,75 @@ class Settings(BaseModel):
             data = tomllib.load(f)
         return cls.model_validate(data)
 
-    @classmethod
-    def load(cls, config_path: Path | None = None) -> Settings:
-        """Load settings from config file or use defaults.
+    @staticmethod
+    def _deep_merge(base: dict, override: dict) -> dict:
+        """Deep merge override into base.
 
-        Searches for config in:
-        1. Explicit path if provided
-        2. ./config.toml
-        3. ~/.config/grounded-code-mcp/config.toml
+        Scalar values from override replace base values. Dict values are merged
+        recursively, so [collections] entries from both configs are combined
+        rather than the user config replacing the project config wholesale.
 
         Args:
-            config_path: Optional explicit path to config file.
+            base: Base dictionary (e.g. from project config.toml).
+            override: Override dictionary (e.g. from user config.toml).
 
         Returns:
-            Settings instance.
+            New dict with override values merged into base.
         """
-        search_paths: list[Path] = []
+        result = dict(base)
+        for key, value in override.items():
+            if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+                result[key] = Settings._deep_merge(result[key], value)
+            else:
+                result[key] = value
+        return result
 
-        if config_path:
-            search_paths.append(config_path)
+    @classmethod
+    def load(
+        cls,
+        config_path: Path | None = None,
+        user_config_path: Path | None = None,
+    ) -> Settings:
+        """Load settings by merging project config with user config.
 
-        search_paths.extend(
-            [
-                Path.cwd() / "config.toml",
-                Path.home() / ".config" / "grounded-code-mcp" / "config.toml",
-            ]
+        Load order (later values override earlier):
+        1. Built-in defaults
+        2. Project config: explicit ``config_path``, or ``./config.toml``
+        3. User config: ``~/.config/grounded-code-mcp/config.toml``
+
+        The ``[collections]`` table is merged (union) across both files so
+        users can add private collections without duplicating the project list.
+
+        Args:
+            config_path: Explicit path to the project config file. Defaults to
+                ``./config.toml`` in the current working directory.
+            user_config_path: Path to the user config file. Defaults to
+                ``~/.config/grounded-code-mcp/config.toml``. Pass a
+                non-existent path to disable user config (useful in tests).
+
+        Returns:
+            Settings instance with merged configuration.
+        """
+        data: dict = {}
+
+        # Layer 1: project config
+        project_path = config_path if config_path is not None else Path.cwd() / "config.toml"
+        if project_path.exists():
+            with open(project_path, "rb") as f:
+                data = tomllib.load(f)
+
+        # Layer 2: user config — always overlaid on top of project config
+        resolved_user_path = (
+            user_config_path
+            if user_config_path is not None
+            else Path.home() / ".config" / "grounded-code-mcp" / "config.toml"
         )
+        if resolved_user_path.exists():
+            with open(resolved_user_path, "rb") as f:
+                user_data = tomllib.load(f)
+            data = cls._deep_merge(data, user_data)
 
-        for path in search_paths:
-            if path.exists():
-                return cls.from_toml(path)
-
-        return cls()
+        return cls.model_validate(data) if data else cls()
 
     def get_collection_name(self, source_path: Path) -> str:
         """Get the collection name for a source path.

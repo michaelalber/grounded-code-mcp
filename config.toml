@@ -1,4 +1,13 @@
-# grounded-code-mcp configuration file
+# grounded-code-mcp — project configuration
+#
+# This file is committed to the repository and shared by all developers.
+# It defines the collection structure, chunking parameters, and embedding
+# model defaults that must stay consistent across the team.
+#
+# Machine-specific settings (Ollama host, Qdrant URL, custom paths) belong
+# in your personal override file:
+#   ~/.config/grounded-code-mcp/config.toml
+# Copy config.toml.example to get started.
 
 [knowledge_base]
 # Directory containing source documents organized by collection
@@ -9,14 +18,14 @@ data_dir = ".grounded-code-mcp"
 manifest_file = "manifest.json"
 
 [ollama]
-# Embedding model - snowflake-arctic-embed2 (8K context, best retrieval scores)
+# Embedding model — must match embedding_dim below.
+# All team members should use the same model so embeddings are compatible.
 model = "snowflake-arctic-embed2"
-# Ollama server host
-host = "http://localhost:11434"
 # Embedding dimensions (snowflake-arctic-embed2 = 1024)
 embedding_dim = 1024
 # Model context length in tokens (snowflake-arctic-embed2 = 8192)
 context_length = 8192
+# ollama.host — set in ~/.config/grounded-code-mcp/config.toml
 
 [chunking]
 # Text chunk size in characters
@@ -33,15 +42,18 @@ max_code_chunk_size = 3000
 provider = "qdrant"
 # Prefix for collection names
 collection_prefix = "grounded_"
-qdrant_url = "http://localhost:6333"  # Qdrant running in Docker
+# vectorstore.qdrant_url — set in ~/.config/grounded-code-mcp/config.toml
 
-# Collection mappings from source directories
+# Collection mappings: source directory → collection name.
+# The server prepends collection_prefix automatically.
+# Add private collections in ~/.config/grounded-code-mcp/config.toml
+# using the same [collections] table — entries are merged, not replaced.
 [collections]
-"sources/dotnet" = "dotnet_csharp"
-"sources/python" = "python"
-"sources/php" = "php_laravel"
-"sources/patterns" = "patterns"
-"sources/databases" = "databases"
-"sources/edge-ai" = "edge_ai"
-"sources/internal" = "internal"
+"sources/internal"             = "internal"
+"sources/patterns"             = "patterns"
+"sources/dotnet"               = "dotnet_csharp"
+"sources/python"               = "python"
+"sources/databases"            = "databases"
+"sources/edge-ai"              = "edge_ai"
 "sources/industrial-automation" = "industrial_automation"
+"sources/4d-legacy"            = "4d_legacy"
