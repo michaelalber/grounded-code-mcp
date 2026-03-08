@@ -1,13 +1,14 @@
 # `javascript_typescript` — JavaScript & TypeScript
 
-JavaScript language reference, modern idioms, TypeScript, and jQuery for
-legacy application maintenance. Covers vanilla JS, ES2024 spec, and both
-legacy jQuery patterns and modern TypeScript.
+JavaScript language reference, modern idioms, TypeScript, Vue.js, and jQuery
+for legacy application maintenance. Covers vanilla JS, ES2024 spec, both
+legacy jQuery patterns, modern TypeScript, and Vue 2/3 frameworks.
 
 ## What belongs here
 
 - JavaScript language reference and best practices
 - TypeScript handbook and practical guides
+- Vue.js 2 and 3 framework documentation
 - jQuery API and learning resources (legacy app support)
 - ECMAScript specification (precise semantics)
 
@@ -33,6 +34,9 @@ legacy jQuery patterns and modern TypeScript.
 | `typescript-handbook/` | TypeScript Handbook — official Microsoft source |
 | `typescript-deep-dive/` | TypeScript Deep Dive — Basarat Ali Syed |
 | `jquery-learning-center/` | jQuery Learning Center — jquery.com (94 guides) |
+| `vuejs-in-action.pdf` | Vue.js in Action — Hanchett & Listwon (Manning) |
+| `vuejs-3-docs/` | Vue 3 official docs — vuejs/docs (GitHub, 122 files) |
+| `vuejs-2-docs/` | Vue 2 official docs — vuejs/v2.vuejs.org (GitHub, 89 files) |
 
 ## Refreshing open-source content
 
@@ -66,4 +70,13 @@ cp -r packages/documentation/copy/en $JS_DST/typescript-handbook && rm -rf /tmp/
 # jQuery Learning Center
 curl -sL https://github.com/jquery/learn.jquery.com/archive/refs/heads/main.zip | \
   funzip | tar -x && mv learn.jquery.com-main $JS_DST/jquery-learning-center
+
+# Vue 3 docs
+curl -sL https://github.com/vuejs/docs/archive/refs/heads/main.zip -o /tmp/vue3.zip && \
+  unzip -q /tmp/vue3.zip -d /tmp/vue3 && mv /tmp/vue3/docs-main/src $JS_DST/vuejs-3-docs
+
+# Vue 2 docs
+curl -sL https://github.com/vuejs/v2.vuejs.org/archive/refs/heads/master.zip -o /tmp/vue2.zip && \
+  unzip -q /tmp/vue2.zip -d /tmp/vue2 && \
+  mkdir -p $JS_DST/vuejs-2-docs && rsync -a /tmp/vue2/v2.vuejs.org-master/src/ $JS_DST/vuejs-2-docs/
 ```
