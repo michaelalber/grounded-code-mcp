@@ -11,31 +11,17 @@ LLMs are sophisticated pattern matchers, not reasoning engines. This project mit
 - Ground responses in your curated knowledge base
 - Treat AI output as "junior dev work" requiring review
 - Structured outputs with validation
-- Pair with TDD workflows—let tests catch AI mistakes
+- Pair with TDD workflows — let tests catch AI mistakes
 
 ## Features
 
-- **Multi-format document ingestion** - PDF, DOCX, PPTX, HTML, Markdown, AsciiDoc, EPUB via Docling
-- **Code-aware semantic chunking** - Preserves code blocks, tables, and heading hierarchy
-- **Local embeddings** - Ollama with snowflake-arctic-embed2 (1024 dimensions)
-- **Dual vector store support** - Qdrant (primary) or ChromaDB (fallback)
-- **Change detection** - SHA-256 hashing for incremental updates
-- **MCP tools** - Search knowledge, find code examples, browse collections
-
-## Installation
-
-```bash
-# Clone the repository
-git clone https://github.com/michaelalber/grounded-code-mcp.git
-cd grounded-code-mcp
-
-# Create virtual environment
-python -m venv .venv
-source .venv/bin/activate  # Linux/macOS
-
-# Install with dev dependencies
-pip install -e ".[dev]"
-```
+- **Multi-format document ingestion** — PDF, DOCX, PPTX, HTML, Markdown, AsciiDoc, EPUB via Docling
+- **Code-aware semantic chunking** — Preserves code blocks, tables, and heading hierarchy
+- **Local embeddings** — Ollama with snowflake-arctic-embed2 (1024 dimensions)
+- **Dual vector store support** — Qdrant (primary) or ChromaDB (fallback)
+- **Change detection** — SHA-256 hashing for incremental updates
+- **MCP tools** — Search knowledge, find code examples, browse collections
+- **Layered configuration** — Project config merged with per-user overrides
 
 ## Prerequisites
 
@@ -44,33 +30,92 @@ pip install -e ".[dev]"
 Install and start Ollama, then pull the embedding model:
 
 ```bash
-# Install Ollama (see https://ollama.ai)
-# Start the service
-systemctl --user start ollama  # or: ollama serve
-
-# Pull the embedding model
+# Install Ollama — see https://ollama.ai
+ollama serve  # or: systemctl --user start ollama
 ollama pull snowflake-arctic-embed2
+```
+
+### Qdrant
+
+Install and start Qdrant (recommended):
+
+```bash
+# Docker
+docker run -d -p 6333:6333 qdrant/qdrant
+
+# or: https://qdrant.tech/documentation/quick-start/
+```
+
+ChromaDB is supported as a fallback (`provider = "chromadb"` in config).
+
+## Installation
+
+### Production (pipx — recommended)
+
+```bash
+pipx install git+https://github.com/michaelalber/grounded-code-mcp.git
+```
+
+After code changes: `pipx install . --force`
+
+### Development
+
+```bash
+git clone https://github.com/michaelalber/grounded-code-mcp.git
+cd grounded-code-mcp
+python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
+```
+
+Dev tools (`pytest`, `ruff`, `mypy`) run from `.venv/bin/`. Use `grounded-code-mcp` from the pipx-installed binary for all runtime commands.
+
+## Configuration
+
+`config.toml` in the project root defines shared settings committed to the repo. Machine-specific settings (Ollama host, Qdrant URL, private collections) go in `~/.config/grounded-code-mcp/config.toml` — this file is deep-merged over the project config at startup.
+
+Copy `config.toml.example` to get started:
+
+```bash
+cp config.toml.example ~/.config/grounded-code-mcp/config.toml
+```
+
+Typical user config:
+
+```toml
+[ollama]
+host = "http://localhost:11434"
+
+[vectorstore]
+qdrant_url = "http://localhost:6333"
+```
+
+Private collections can be added in the user config using the same `[collections]` table — entries are merged, not replaced:
+
+```toml
+[collections]
+"sources/private" = "private"
 ```
 
 ## Usage
 
 ### Ingest Documents
 
-Create a `sources/` directory and add your documentation:
+Populate a `sources/` subdirectory and ingest:
 
 ```bash
-mkdir -p sources/python sources/patterns
-# Add markdown, PDF, DOCX files...
+# Ingest a specific collection
+grounded-code-mcp ingest sources/python
 
-# Ingest all documents
+# Ingest all collections
 grounded-code-mcp ingest
 
-# Ingest specific path
-grounded-code-mcp ingest sources/python/
-
-# Force re-ingestion
+# Force full re-ingestion (ignores manifest)
 grounded-code-mcp ingest --force
+
+# Ingest a single collection by name
+grounded-code-mcp ingest --collection python
 ```
+
+> **Note:** Avoid running multiple ingests in parallel. Docling uses the GPU for PDF parsing — concurrent jobs cause CUDA out-of-memory errors.
 
 ### Check Status
 
@@ -83,19 +128,22 @@ grounded-code-mcp status
 ```bash
 grounded-code-mcp search "async HTTP request"
 grounded-code-mcp search "dependency injection" --collection patterns
-grounded-code-mcp search "error handling" -n 10 --min-score 0.8
+grounded-code-mcp search "error handling" -n 10 --min-score 0.4
 ```
 
 ### Start MCP Server
 
 ```bash
+# stdio (default — for Claude Code / OpenCode subprocess mode)
 grounded-code-mcp serve
+
+# HTTP (for remote clients or VM access)
+grounded-code-mcp serve --transport streamable-http --host 127.0.0.1 --port 4242
+
 grounded-code-mcp serve --debug
 ```
 
 ### Connect MCP Clients
-
-The server uses **stdio** transport by default. Configure your MCP client to launch the server as a subprocess.
 
 **Claude Code** (user scope, available in all projects):
 
@@ -117,36 +165,7 @@ claude mcp add --transport stdio --scope user grounded-code-mcp -- grounded-code
 }
 ```
 
-If installed via `pipx`, the `grounded-code-mcp` command is on PATH and works from any directory.
-
-## Configuration
-
-Create a `config.toml` file to customize settings:
-
-```toml
-[knowledge_base]
-sources_dir = "sources"
-data_dir = ".data"
-
-[ollama]
-host = "http://localhost:11434"
-model = "snowflake-arctic-embed2"
-embedding_dim = 1024
-
-[chunking]
-text_chunk_size = 1000
-text_chunk_max_size = 1500
-text_chunk_overlap = 200
-max_code_chunk_size = 3000
-
-[vectorstore]
-provider = "qdrant"  # or "chroma"
-collection_prefix = "grounded_"
-```
-
 ## MCP Tools
-
-When running as an MCP server, the following tools are available:
 
 | Tool | Description |
 |------|-------------|
@@ -156,47 +175,41 @@ When running as an MCP server, the following tools are available:
 | `list_sources` | List ingested source documents |
 | `get_source_info` | Get details about a specific source |
 
-## Collection Mapping
+## Collections
 
-Documents are organized into collections based on directory structure:
+Collections are mapped from source directories in `config.toml`. The server prepends `grounded_` to all collection names automatically.
 
-| Directory | Collection |
-|-----------|------------|
-| `sources/python/` | `grounded_python` |
-| `sources/dotnet/` | `grounded_dotnet` |
-| `sources/patterns/` | `grounded_patterns` |
-| `sources/databases/` | `grounded_databases` |
+| Directory | Collection (pass as `collection=`) | What belongs here |
+|-----------|-------------------------------------|-------------------|
+| `sources/internal` | `internal` | Engineering standards, XP/TDD/CD practices, agile, DDD, security frameworks |
+| `sources/patterns` | `patterns` | Design patterns, clean code, dependency injection, CQRS |
+| `sources/dotnet` | `dotnet_csharp` | .NET/C# APIs, ASP.NET Core, Entity Framework, migration guides |
+| `sources/python` | `python` | Python language, testing, FastAPI, Pydantic, FastMCP, ML |
+| `sources/databases` | `databases` | SQL, relational theory, PostgreSQL |
+| `sources/edge-ai` | `edge_ai` | AI engineering, RAG pipelines, LLM application design, NLP |
+| `sources/industrial-automation` | `industrial_automation` | PLC, OPC UA, MODBUS, ICS security, Raspberry Pi |
+| `sources/4d-legacy` | `4d_legacy` | 4D platform docs for 4D → .NET migration (minimal LLM training coverage) |
+| `sources/php` | `php_laravel` | PHP manual, PHP best practices, Laravel (multiple versions) |
+| `sources/javascript` | `javascript_typescript` | JavaScript, TypeScript, Vue.js, jQuery, ECMAScript spec |
+
+Add private collections in `~/.config/grounded-code-mcp/config.toml`.
+
+Each collection directory contains a `README.md` describing what belongs there.
 
 ## Development
-
-```bash
-# Create dev venv and install dev dependencies
-python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
-```
 
 ### Quality Checks
 
 ```bash
-# Run tests
 .venv/bin/pytest
-
-# Run with coverage
 .venv/bin/pytest --cov=grounded_code_mcp
-
-# Formatting check (apply formatting by removing --check)
 .venv/bin/ruff format --check src/ tests/
-
-# Lint
 .venv/bin/ruff check src/ tests/
-
-# Type check
 .venv/bin/mypy src/
-
-# Security scan
 .venv/bin/bandit -r src/ -c pyproject.toml
 ```
 
-Run all checks at once:
+All at once:
 
 ```bash
 .venv/bin/pytest && .venv/bin/ruff format --check src/ tests/ && .venv/bin/ruff check src/ tests/ && .venv/bin/mypy src/ && .venv/bin/bandit -r src/ -c pyproject.toml
@@ -204,46 +217,53 @@ Run all checks at once:
 
 ## Tech Stack
 
-- **MCP Framework:** FastMCP
-- **Document Parsing:** Docling
-- **Vector Store:** Qdrant / ChromaDB
-- **Embeddings:** Ollama + snowflake-arctic-embed2
-- **Configuration:** TOML + Pydantic
-- **CLI:** Click + Rich
-- **Testing:** pytest
+| Component | Choice |
+|-----------|--------|
+| MCP Framework | FastMCP |
+| Document Parsing | Docling |
+| Vector Store | Qdrant (primary), ChromaDB (fallback) |
+| Embeddings | Ollama + snowflake-arctic-embed2 |
+| Configuration | TOML + Pydantic |
+| CLI | Click + Rich |
+| Testing | pytest |
+| Linting | ruff |
+| Type Checking | mypy |
 
 ## Security
 
-- File type validation (PDF, DOCX, PPTX, HTML, Markdown, AsciiDoc, EPUB)
+- File type validation via allowlist (PDF, DOCX, PPTX, HTML, Markdown, AsciiDoc, EPUB)
 - MIME type verification via magic bytes or UTF-8 validation
-- File size limits (100MB default, configurable)
-- Filename sanitization (path traversal prevention, special chars removed)
+- File size limits (100 MB default, configurable)
+- Filename sanitization (path traversal prevention)
 - All inputs validated at system boundaries
 
 ## Troubleshooting
 
-**Ollama Connection Error:**
-- Ensure Ollama is running: `ollama serve` or `systemctl --user start ollama`
-- Check the embedding model is pulled: `ollama list`
-- Verify Ollama is on port 11434: `curl http://localhost:11434/api/tags`
+**Ollama connection error:**
+```bash
+ollama serve                          # start Ollama
+ollama list                           # confirm model is pulled
+curl http://localhost:11434/api/tags  # verify port
+```
 
-**Ingestion Failures:**
+**Qdrant connection error:**
+```bash
+curl http://localhost:6333/healthz    # confirm Qdrant is running
+```
+
+**Ingestion failures:**
 - Check file format is supported
-- Ensure sufficient disk space for vector store
-- Use `--force` flag to re-ingest: `grounded-code-mcp ingest --force`
+- Run one ingest at a time — parallel ingests cause GPU OOM
+- Use `--force` to re-ingest from scratch
 
-**Search Returns No Results:**
-- Verify documents were ingested: `grounded-code-mcp status`
-- Try lowering `--min-score` threshold
-- Check collection name matches: `grounded-code-mcp search "query" --collection NAME`
-
-**MCP Server Connection Issues:**
-- Verify the server starts: `grounded-code-mcp serve --debug`
-- Check client MCP configuration points to correct transport
+**Search returns no results:**
+- Verify ingestion: `grounded-code-mcp status`
+- Lower the score threshold: `--min-score 0.3`
+- Pass the bare collection suffix, not the full `grounded_*` name
 
 ## Contributing
 
-This is a personal/educational project, but suggestions and feedback are welcome via issues.
+Suggestions and feedback welcome via issues.
 
 ## Author
 
@@ -251,4 +271,4 @@ This is a personal/educational project, but suggestions and feedback are welcome
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) for details.
+MIT License — see [LICENSE](LICENSE) for details.
