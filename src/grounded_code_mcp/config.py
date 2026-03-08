@@ -81,7 +81,7 @@ class Settings(BaseModel):
         return cls.model_validate(data)
 
     @staticmethod
-    def _deep_merge(base: dict, override: dict) -> dict:
+    def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
         """Deep merge override into base.
 
         Scalar values from override replace base values. Dict values are merged
@@ -129,7 +129,7 @@ class Settings(BaseModel):
         Returns:
             Settings instance with merged configuration.
         """
-        data: dict = {}
+        data: dict[str, Any] = {}
 
         # Layer 1: project config
         project_path = config_path if config_path is not None else Path.cwd() / "config.toml"

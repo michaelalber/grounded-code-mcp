@@ -128,7 +128,9 @@ class TestSettings:
         settings = Settings.load(temp_dir / "nonexistent.toml", user_config_path=no_user_cfg)
         assert settings.ollama.model == "snowflake-arctic-embed2"
 
-    def test_load_merges_user_config_over_project(self, temp_dir: Path, sample_config_toml: str) -> None:
+    def test_load_merges_user_config_over_project(
+        self, temp_dir: Path, sample_config_toml: str
+    ) -> None:
         """User config values override project config values."""
         project_cfg = temp_dir / "config.toml"
         project_cfg.write_text(sample_config_toml)
@@ -159,9 +161,7 @@ class TestSettings:
         user_cfg = temp_dir / "user.toml"
         user_cfg.write_text('[vectorstore]\nqdrant_url = "http://localhost:6333"\n')
 
-        settings = Settings.load(
-            temp_dir / "nonexistent.toml", user_config_path=user_cfg
-        )
+        settings = Settings.load(temp_dir / "nonexistent.toml", user_config_path=user_cfg)
         assert settings.vectorstore.qdrant_url == "http://localhost:6333"
 
     def test_deep_merge_scalar_override(self) -> None:
