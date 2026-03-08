@@ -147,29 +147,33 @@ class DocumentParser:
 
         file_type = get_file_type(path)
 
-        # For plain markdown, just read the file directly
-        if file_type == "md":
-            return self._parse_markdown(path)
+        # For plain text formats, read the file directly
+        if file_type in ("md", "asciidoc"):
+            return self._parse_plaintext(path, file_type)
 
         # Use Docling for other formats
         return self._parse_with_docling(path, file_type)
 
-    def _parse_markdown(self, path: Path) -> ParsedDocument:
-        """Parse a markdown file directly.
+    def _parse_plaintext(self, path: Path, file_type: str) -> ParsedDocument:
+        """Parse a plain text file directly (markdown, asciidoc, etc.).
 
         Args:
-            path: Path to the markdown file.
+            path: Path to the file.
+            file_type: Normalized file type string.
 
         Returns:
             ParsedDocument with the file contents.
         """
         content = path.read_text(encoding="utf-8")
 
-        # Try to extract title from first heading
+        # Try to extract title from first markdown or asciidoc heading
         title = None
         for line in content.split("\n"):
             line = line.strip()
             if line.startswith("# "):
+                title = line[2:].strip()
+                break
+            if line.startswith("= ") and file_type == "asciidoc":
                 title = line[2:].strip()
                 break
 
@@ -177,7 +181,7 @@ class DocumentParser:
             path=path,
             content=content,
             title=title,
-            file_type="md",
+            file_type=file_type,
         )
 
     def _parse_with_docling(self, path: Path, file_type: str) -> ParsedDocument:
