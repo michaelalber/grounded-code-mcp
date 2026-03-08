@@ -12,12 +12,14 @@ hardware, and ICS security. Used for industrial IoT and automation projects.
 - ICS/OT security (NIST SP 800-82)
 - Robotics and motion control references
 
-## Suggested sources
+## Sources in this collection
 
-| Document | Publisher |
+| File | Content |
 |---|---|
-| OPC UA Specification Parts 1–26 | OPC Foundation |
-| NIST SP 800-82 (ICS Security) | NIST |
-| AutomationDirect PLC Handbook | AutomationDirect |
-| Raspberry Pi User's Guide | Raspberry Pi Foundation |
-| MODBUS Protocol Specification | Modbus.org |
+| `automation-and-control-engineering-digital-material.pdf` | Automation & Control Engineering reference |
+| `automation-direct-plc-handbook-v2.pdf` | AutomationDirect PLC Handbook v2 |
+| `automation-handbook.pdf` | Automation Handbook |
+| `opc-10000-1-ua-specification-part-1-*.pdf` … `opc-10000-26-*.pdf` | OPC UA Specification Parts 1–26 (OPC Foundation) |
+| `opc-10000-ua-specification-errata-1.04.13.pdf` | OPC UA Errata 1.04 |
+| `opc-ua-specification-errata-1.03.10.pdf` | OPC UA Errata 1.03 |
+| *(other files)* | NIST SP 800-82, Raspberry Pi guide, MODBUS spec, robotics refs |
