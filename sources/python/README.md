@@ -11,6 +11,7 @@ AI-assisted software development.
 - Testing with pytest — patterns, fixtures, and best practices
 - Web frameworks: FastAPI, Flask
 - Data validation: Pydantic v2
+- MCP server and client development with FastMCP
 - Architecture patterns in Python (DDD, ports & adapters, clean architecture)
 - Data analysis and ML with Python
 
@@ -36,6 +37,7 @@ AI-assisted software development.
 | `pydantic-v2-docs/` | Pydantic v2 official docs — markdown source (pydantic/pydantic, MIT) |
 | `pytest-docs/` | pytest official docs — rst source (pytest-dev/pytest, MIT) |
 | `python-3-docs/` | Python 3.13 official HTML docs — docs.python.org (PSF License) |
+| `fastmcp-docs/` | FastMCP official docs + 100 examples — PrefectHQ/fastmcp (MIT); tools, resources, clients, servers, deployment |
 
 ## Refreshing open-source content
 
@@ -74,4 +76,13 @@ curl -sL https://www.python.org/ftp/python/doc/3.13.3/python-3.13.3-docs-html.ta
   tar -xjf /tmp/pydocs.tar.bz2 -C /tmp/ && \
   mkdir -p $PY_DST/python-3-docs && \
   rsync -a /tmp/python-3.13.3-docs-html/ $PY_DST/python-3-docs/
+
+# FastMCP docs + examples (PrefectHQ/fastmcp)
+curl -sL https://github.com/PrefectHQ/fastmcp/archive/refs/heads/main.zip -o /tmp/fastmcp.zip && \
+  unzip -q /tmp/fastmcp.zip -d /tmp/fastmcp && \
+  mkdir -p $PY_DST/fastmcp-docs && \
+  rsync -a --include="*/" --include="*.md" --include="*.mdx" --exclude="*" \
+    /tmp/fastmcp/fastmcp-main/docs/ $PY_DST/fastmcp-docs/ && \
+  rsync -a --include="*/" --include="*.py" --exclude="*" \
+    /tmp/fastmcp/fastmcp-main/examples/ $PY_DST/fastmcp-docs/examples/
 ```
