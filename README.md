@@ -183,14 +183,14 @@ Collections are mapped from source directories in `config.toml`. The server prep
 |-----------|-------------------------------------|-------------------|
 | `sources/internal` | `internal` | Engineering standards, XP/TDD/CD practices, agile, DDD, security frameworks |
 | `sources/patterns` | `patterns` | Design patterns, clean code, dependency injection, CQRS |
-| `sources/dotnet` | `dotnet_csharp` | .NET/C# APIs, ASP.NET Core, Entity Framework, migration guides |
+| `sources/dotnet` | `dotnet` | .NET/C# APIs, ASP.NET Core, Entity Framework, migration guides |
 | `sources/python` | `python` | Python language, testing, FastAPI, Pydantic, FastMCP, ML |
 | `sources/databases` | `databases` | SQL, relational theory, PostgreSQL |
 | `sources/edge-ai` | `edge_ai` | AI engineering, RAG pipelines, LLM application design, NLP |
-| `sources/industrial-automation` | `industrial_automation` | PLC, OPC UA, MODBUS, ICS security, Raspberry Pi |
+| `sources/industrial-automation` | `automation` | PLC, OPC UA, MODBUS, ICS security, Raspberry Pi |
 | `sources/4d-legacy` | `4d_legacy` | 4D platform docs for 4D → .NET migration (minimal LLM training coverage) |
-| `sources/php` | `php_laravel` | PHP manual, PHP best practices, Laravel (multiple versions) |
-| `sources/javascript` | `javascript_typescript` | JavaScript, TypeScript, Vue.js, jQuery, ECMAScript spec |
+| `sources/php` | `php` | PHP manual, PHP best practices, Laravel (multiple versions) |
+| `sources/javascript` | `javascript` | JavaScript, TypeScript, Vue.js, jQuery, ECMAScript spec |
 
 Add private collections in `~/.config/grounded-code-mcp/config.toml`.
 
