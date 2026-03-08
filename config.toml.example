@@ -1,0 +1,33 @@
+# grounded-code-mcp — user configuration example
+#
+# Copy this file to ~/.config/grounded-code-mcp/config.toml and adjust
+# for your machine. Settings here are merged on top of the project
+# config.toml — you only need to specify values that differ.
+#
+# The [collections] table is combined (union) with the project collections,
+# so you can add private collections without duplicating the project list.
+
+[ollama]
+# Ollama server URL. Change if running Ollama on a remote host or
+# non-default port.
+host = "http://localhost:11434"
+
+# Uncomment to override the embedding model (must also update embedding_dim).
+# All team members must use the same model — changing it requires a full
+# re-ingest of all collections.
+# model = "nomic-embed-text"
+# embedding_dim = 768
+
+[vectorstore]
+# Qdrant connection URL. Default assumes local Docker:
+#   docker run -p 6333:6333 qdrant/qdrant
+qdrant_url = "http://localhost:6333"
+
+[knowledge_base]
+# Override source/data directories if you store them outside the project.
+# sources_dir = "/data/grounded-code-mcp/sources"
+# data_dir = "/data/grounded-code-mcp/.grounded-code-mcp"
+
+# Add private collections here — merged with the project [collections].
+# [collections]
+# "sources/my-team-docs" = "team_docs"

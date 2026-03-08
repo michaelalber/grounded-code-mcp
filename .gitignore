@@ -63,7 +63,13 @@ download_docs.py
 # Project data
 .data/
 .grounded-code-mcp/
+# Ignore source content (PDFs, EPUBs — copyrighted and large).
+# Track only the directory structure and per-collection READMEs.
 sources/*
 !sources/.gitkeep
+!sources/*/
+sources/*/*
+!sources/*/.gitkeep
+!sources/*/README.md
 logs/
 uv.lock
