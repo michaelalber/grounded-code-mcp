@@ -202,12 +202,14 @@ class IngestionPipeline:
 
         if parsed.is_empty:
             logger.warning("Empty document: %s", path)
+            self._record_skipped(path, relative_path, collection_name)
             return ("skipped", 0)
 
         # Chunk document
         chunks = self.chunker.chunk(parsed.content, source_path=str(relative_path))
         if not chunks:
             logger.warning("No chunks created for: %s", path)
+            self._record_skipped(path, relative_path, collection_name)
             return ("skipped", 0)
 
         logger.debug("Created %d chunks", len(chunks))
@@ -240,6 +242,27 @@ class IngestionPipeline:
         self.manifest.add_entry(entry)
 
         return ("ingested", len(chunks))
+
+    def _record_skipped(self, path: Path, relative_path: Path, collection_name: str) -> None:
+        """Write a manifest entry for a skipped (empty or unchunkable) file.
+
+        Recording skipped files prevents them from appearing as untracked on
+        subsequent check runs.
+
+        Args:
+            path: Absolute path to the file.
+            relative_path: Path relative to sources directory.
+            collection_name: Target collection name.
+        """
+        entry = SourceEntry(
+            path=str(relative_path),
+            sha256=compute_sha256(path),
+            collection=collection_name,
+            file_type=get_file_type(path),
+            chunk_count=0,
+            chunk_ids=[],
+        )
+        self.manifest.add_entry(entry)
 
     def _get_relative_path(self, path: Path) -> Path:
         """Get path relative to sources directory.
