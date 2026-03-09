@@ -215,6 +215,45 @@ class TestIngestionPipeline:
         total_manifest_chunks = sum(e.chunk_count for e in pipeline.manifest.sources.values())
         assert chunks_a + chunks_b == total_manifest_chunks
 
+    def test_ingest_empty_document_is_tracked_in_manifest(
+        self,
+        pipeline: IngestionPipeline,
+        settings: Settings,
+    ) -> None:
+        """Test that empty documents are tracked in the manifest to prevent re-scanning."""
+        # Arrange: a file that parses to empty content
+        empty_file = settings.knowledge_base.sources_dir / "empty.md"
+        empty_file.write_text("")
+
+        # Act
+        stats = pipeline.ingest()
+
+        # Assert: counted as skipped (not ingested), but tracked in manifest
+        assert stats.files_scanned == 1
+        assert stats.files_skipped == 1
+        assert stats.files_ingested == 0
+        assert pipeline.manifest.get_entry(Path("empty.md")) is not None
+
+    def test_ingest_empty_document_skipped_on_second_run(
+        self,
+        pipeline: IngestionPipeline,
+        settings: Settings,
+    ) -> None:
+        """Test that a tracked empty document is skipped on subsequent runs."""
+        # Arrange
+        empty_file = settings.knowledge_base.sources_dir / "empty.md"
+        empty_file.write_text("")
+
+        # First run tracks it
+        pipeline.ingest()
+
+        # Act: second run
+        stats = pipeline.ingest()
+
+        # Assert: skipped via manifest hash check, not re-evaluated
+        assert stats.files_skipped == 1
+        assert stats.files_ingested == 0
+
     def test_user_provided_collection_gets_prefix(
         self,
         pipeline: IngestionPipeline,

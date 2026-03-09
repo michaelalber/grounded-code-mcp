@@ -21,13 +21,16 @@ class TestIsSupportedFormat:
 
     @pytest.mark.parametrize(
         "suffix",
-        [".pdf", ".docx", ".doc", ".pptx", ".html", ".md", ".markdown", ".epub"],
+        [
+            ".pdf", ".docx", ".doc", ".pptx", ".html", ".md", ".markdown", ".epub",
+            ".rst", ".txt", ".mdx",
+        ],
     )
     def test_supported_formats(self, suffix: str) -> None:
         """Test that supported formats return True."""
         assert is_supported_format(Path(f"test{suffix}")) is True
 
-    @pytest.mark.parametrize("suffix", [".txt", ".jpg", ".png", ".py", ".json"])
+    @pytest.mark.parametrize("suffix", [".jpg", ".png", ".py", ".json"])
     def test_unsupported_formats(self, suffix: str) -> None:
         """Test that unsupported formats return False."""
         assert is_supported_format(Path(f"test{suffix}")) is False
@@ -53,6 +56,12 @@ class TestGetFileType:
         assert get_file_type(Path("test.adoc")) == "asciidoc"
         assert get_file_type(Path("test.htm")) == "html"
         assert get_file_type(Path("test.doc")) == "docx"
+        assert get_file_type(Path("test.mdx")) == "md"
+
+    def test_rst_and_txt_file_types(self) -> None:
+        """Test that .rst and .txt return their own type strings."""
+        assert get_file_type(Path("test.rst")) == "rst"
+        assert get_file_type(Path("test.txt")) == "txt"
 
 
 class TestParsedDocument:
@@ -108,15 +117,15 @@ class TestDocumentParser:
 
     def test_parse_unsupported_format(self, temp_dir: Path) -> None:
         """Test parsing an unsupported format."""
-        txt_file = temp_dir / "test.txt"
-        txt_file.write_text("Plain text")
+        csv_file = temp_dir / "test.csv"
+        csv_file.write_text("a,b,c")
 
         parser = DocumentParser()
 
         with pytest.raises(UnsupportedFormatError) as exc_info:
-            parser.parse(txt_file)
+            parser.parse(csv_file)
 
-        assert exc_info.value.path == txt_file
+        assert exc_info.value.path == csv_file
 
     def test_parse_with_docling_mock(self, temp_dir: Path) -> None:
         """Test parsing with mocked Docling."""
@@ -177,11 +186,11 @@ class TestDocumentParser:
     def test_parse_many_skip_errors(self, temp_dir: Path) -> None:
         """Test parse_many skips errors when configured."""
         (temp_dir / "good.md").write_text("# Good Doc")
-        (temp_dir / "bad.txt").write_text("Unsupported")
+        (temp_dir / "bad.csv").write_text("a,b,c")
 
         parser = DocumentParser()
         results = parser.parse_many(
-            [temp_dir / "good.md", temp_dir / "bad.txt"],
+            [temp_dir / "good.md", temp_dir / "bad.csv"],
             skip_errors=True,
         )
 
@@ -190,12 +199,12 @@ class TestDocumentParser:
 
     def test_parse_many_raises_on_error(self, temp_dir: Path) -> None:
         """Test parse_many raises when skip_errors is False."""
-        (temp_dir / "bad.txt").write_text("Unsupported")
+        (temp_dir / "bad.csv").write_text("a,b,c")
 
         parser = DocumentParser()
 
         with pytest.raises(UnsupportedFormatError):
-            parser.parse_many([temp_dir / "bad.txt"], skip_errors=False)
+            parser.parse_many([temp_dir / "bad.csv"], skip_errors=False)
 
     def test_parse_many_skips_empty(self, temp_dir: Path) -> None:
         """Test parse_many skips empty documents."""
@@ -232,6 +241,56 @@ class TestDocumentParser:
         assert "Body text." in result.content
         assert result.file_type == "asciidoc"
 
+    def test_parse_rst_directly_without_docling(self, temp_dir: Path) -> None:
+        """Test that .rst files are read directly, bypassing Docling."""
+        rst_file = temp_dir / "test.rst"
+        rst_file.write_text("My Title\n========\n\nSome rst content.")
+
+        parser = DocumentParser()
+        with patch.object(parser, "_get_converter", side_effect=RuntimeError("Docling should not be called")):
+            result = parser.parse(rst_file)
+
+        assert "Some rst content." in result.content
+        assert result.file_type == "rst"
+        assert result.title == "My Title"
+
+    def test_parse_rst_without_title(self, temp_dir: Path) -> None:
+        """Test that .rst files without a title heading have title=None."""
+        rst_file = temp_dir / "noheading.rst"
+        rst_file.write_text("Just some plain rst content without a heading.")
+
+        parser = DocumentParser()
+        result = parser.parse(rst_file)
+
+        assert result.title is None
+        assert "plain rst content" in result.content
+
+    def test_parse_txt_directly_without_docling(self, temp_dir: Path) -> None:
+        """Test that .txt files are read directly, bypassing Docling."""
+        txt_file = temp_dir / "test.txt"
+        txt_file.write_text("Plain text content.\nSecond line.")
+
+        parser = DocumentParser()
+        with patch.object(parser, "_get_converter", side_effect=RuntimeError("Docling should not be called")):
+            result = parser.parse(txt_file)
+
+        assert "Plain text content." in result.content
+        assert result.file_type == "txt"
+        assert result.title is None
+
+    def test_parse_mdx_directly_without_docling(self, temp_dir: Path) -> None:
+        """Test that .mdx files are read directly as markdown, bypassing Docling."""
+        mdx_file = temp_dir / "test.mdx"
+        mdx_file.write_text("# MDX Title\n\nContent with <Component /> tags.")
+
+        parser = DocumentParser()
+        with patch.object(parser, "_get_converter", side_effect=RuntimeError("Docling should not be called")):
+            result = parser.parse(mdx_file)
+
+        assert "Content with <Component />" in result.content
+        assert result.file_type == "md"
+        assert result.title == "MDX Title"
+
 
 class TestScanDirectory:
     """Tests for scan_directory function."""
@@ -245,13 +304,28 @@ class TestScanDirectory:
         """Test scanning directory with supported files."""
         (temp_dir / "doc.md").write_text("# Test")
         (temp_dir / "doc.pdf").write_bytes(b"pdf")
-        (temp_dir / "ignored.txt").write_text("txt")
+        (temp_dir / "ignored.py").write_text("code")
 
         result = scan_directory(temp_dir)
 
         assert len(result) == 2
         assert any(p.suffix == ".md" for p in result)
         assert any(p.suffix == ".pdf" for p in result)
+
+    def test_scan_includes_rst_txt_mdx(self, temp_dir: Path) -> None:
+        """Test that scan_directory includes .rst, .txt, and .mdx files."""
+        (temp_dir / "doc.rst").write_text("RST content")
+        (temp_dir / "doc.txt").write_text("Plain text")
+        (temp_dir / "doc.mdx").write_text("# MDX content")
+        (temp_dir / "ignored.py").write_text("code")
+
+        result = scan_directory(temp_dir)
+
+        suffixes = {p.suffix for p in result}
+        assert ".rst" in suffixes
+        assert ".txt" in suffixes
+        assert ".mdx" in suffixes
+        assert ".py" not in suffixes
 
     def test_scan_recursive(self, temp_dir: Path) -> None:
         """Test recursive directory scanning."""
