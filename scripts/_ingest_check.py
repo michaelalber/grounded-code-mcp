@@ -14,10 +14,16 @@ if sys.version_info >= (3, 11):
 else:
     import tomli as tomllib  # type: ignore[no-redef]
 
-INGESTABLE = {
-    ".pdf", ".epub", ".md", ".markdown", ".html", ".htm",
-    ".rst", ".asciidoc", ".adoc", ".mdx", ".txt", ".docx", ".doc",
-}
+try:
+    from grounded_code_mcp.parser import SUPPORTED_EXTENSIONS as INGESTABLE
+except ImportError:
+    # Fallback when running outside the installed package — keep in sync with
+    # grounded_code_mcp.parser.SUPPORTED_EXTENSIONS
+    INGESTABLE = {
+        ".pdf", ".epub", ".md", ".markdown", ".mdx", ".html", ".htm",
+        ".rst", ".txt", ".asciidoc", ".adoc", ".docx", ".doc",
+        ".pptx", ".ppt", ".xlsx", ".xls",
+    }
 
 
 def main(project_dir: Path) -> None:
