@@ -23,6 +23,9 @@ SUPPORTED_EXTENSIONS = {
     ".htm",
     ".md",
     ".markdown",
+    ".mdx",
+    ".rst",
+    ".txt",
     ".asciidoc",
     ".adoc",
     ".epub",
@@ -89,6 +92,7 @@ def get_file_type(path: Path) -> str:
     # Normalize some extensions
     type_map = {
         ".markdown": "md",
+        ".mdx": "md",
         ".adoc": "asciidoc",
         ".htm": "html",
         ".doc": "docx",
@@ -148,14 +152,14 @@ class DocumentParser:
         file_type = get_file_type(path)
 
         # For plain text formats, read the file directly
-        if file_type in ("md", "asciidoc"):
+        if file_type in ("md", "asciidoc", "rst", "txt"):
             return self._parse_plaintext(path, file_type)
 
         # Use Docling for other formats
         return self._parse_with_docling(path, file_type)
 
     def _parse_plaintext(self, path: Path, file_type: str) -> ParsedDocument:
-        """Parse a plain text file directly (markdown, asciidoc, etc.).
+        """Parse a plain text file directly (markdown, asciidoc, rst, txt, etc.).
 
         Args:
             path: Path to the file.
@@ -166,16 +170,31 @@ class DocumentParser:
         """
         content = path.read_text(encoding="utf-8")
 
-        # Try to extract title from first markdown or asciidoc heading
         title = None
-        for line in content.split("\n"):
-            line = line.strip()
-            if line.startswith("# "):
-                title = line[2:].strip()
-                break
-            if line.startswith("= ") and file_type == "asciidoc":
-                title = line[2:].strip()
-                break
+        lines = content.split("\n")
+
+        if file_type in ("md",):
+            for line in lines:
+                line = line.strip()
+                if line.startswith("# "):
+                    title = line[2:].strip()
+                    break
+        elif file_type == "asciidoc":
+            for line in lines:
+                line = line.strip()
+                if line.startswith("= "):
+                    title = line[2:].strip()
+                    break
+        elif file_type == "rst":
+            # RST titles: a text line followed by an underline of ===, ---, ~~~, etc.
+            for i, line in enumerate(lines):
+                stripped = line.strip()
+                if stripped and i + 1 < len(lines):
+                    underline = lines[i + 1].strip()
+                    if underline and len(underline) >= len(stripped) and underline == underline[0] * len(underline) and underline[0] in "=-~^#+*":
+                        title = stripped
+                        break
+        # txt: no title extraction
 
         return ParsedDocument(
             path=path,
