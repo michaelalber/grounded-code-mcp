@@ -245,13 +245,13 @@ class TestEmbeddingClient:
         assert client.context_length == 4096
 
     def test_max_chars_property(self) -> None:
-        """Test max_chars = context_length * _CHARS_PER_TOKEN_ESTIMATE.
+        """Test max_chars = int(context_length * _CHARS_PER_TOKEN_ESTIMATE).
 
-        Uses 2 chars/token (conservative) so truncated text stays safely under
-        the model's token limit even for dense technical/PDF content.
+        Uses 1.5 chars/token so truncated text stays safely under the model's
+        token limit even for dense technical/PDF/OCR content.
         """
         client = EmbeddingClient(context_length=8192)
-        assert client.max_chars == 8192 * 2  # 16384
+        assert client.max_chars == int(8192 * 1.5)  # 12288
 
     def test_truncate_text_short(self) -> None:
         """Text under limit passes through unchanged."""
@@ -262,7 +262,7 @@ class TestEmbeddingClient:
     def test_truncate_text_long(self) -> None:
         """Text over limit is truncated to max_chars."""
         client = EmbeddingClient(context_length=100)
-        max_chars = 100 * 2  # 200
+        max_chars = int(100 * 1.5)  # 150
         long_text = "x" * 500
         result = client._truncate_text(long_text)
         assert len(result) == max_chars
@@ -270,7 +270,7 @@ class TestEmbeddingClient:
     def test_embed_truncates_long_text(self) -> None:
         """embed() truncates before sending to Ollama."""
         client = EmbeddingClient(model="test-model", context_length=100)
-        max_chars = 100 * 2  # 200
+        max_chars = int(100 * 1.5)  # 150
         long_text = "a" * 500
 
         mock_ollama = MagicMock()
@@ -286,7 +286,7 @@ class TestEmbeddingClient:
     def test_embed_many_truncates_long_texts(self) -> None:
         """embed_many() truncates each text before sending to Ollama."""
         client = EmbeddingClient(model="test-model", context_length=100)
-        max_chars = 100 * 2  # 200
+        max_chars = int(100 * 1.5)  # 150
         texts = ["b" * 500, "short"]
 
         mock_ollama = MagicMock()
@@ -298,6 +298,44 @@ class TestEmbeddingClient:
         sent_batch = mock_ollama.embed.call_args[1]["input"]
         assert len(sent_batch[0]) == max_chars
         assert sent_batch[1] == "short"
+
+    def test_embed_many_context_error_falls_back_to_individual(self) -> None:
+        """embed_many falls back to individual embedding when batch exceeds context length."""
+        client = EmbeddingClient(model="test-model", context_length=100)
+
+        mock_ollama = MagicMock()
+        # Batch fails; individual calls succeed
+        mock_ollama.embed.side_effect = [
+            ResponseError("the input length exceeds the context length"),
+            {"embeddings": [[0.1, 0.2]]},
+            {"embeddings": [[0.3, 0.4]]},
+        ]
+
+        with patch.object(client, "_client", mock_ollama):
+            results = client.embed_many(["text1", "text2"])
+
+        assert len(results) == 2
+        assert mock_ollama.embed.call_count == 3  # 1 batch attempt + 2 individual
+
+    def test_embed_many_fallback_uses_half_max_chars(self) -> None:
+        """Individual fallback truncates to max_chars // 2 for safety."""
+        client = EmbeddingClient(model="test-model", context_length=100)
+
+        mock_ollama = MagicMock()
+        mock_ollama.embed.side_effect = [
+            ResponseError("input length exceeds context length"),
+            {"embeddings": [[0.1]]},
+        ]
+
+        long_text = "a" * 300  # longer than max_chars // 2 = 75
+
+        with patch.object(client, "_client", mock_ollama):
+            results = client.embed_many([long_text])
+
+        assert len(results) == 1
+        # Individual fallback call should have used at most max_chars // 2 chars
+        individual_input = mock_ollama.embed.call_args[1]["input"]
+        assert len(individual_input) == client.max_chars // 2
 
     def test_from_settings_passes_context_length(self) -> None:
         """from_settings() wires through context_length."""

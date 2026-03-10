@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 _CHARS_PER_TOKEN_ESTIMATE = (
-    2  # Conservative: keeps truncated text safely under token limit for dense PDF/code content
+    1.5  # Conservative: keeps truncated text safely under token limit for dense PDF/OCR content
 )
 
 
@@ -96,7 +96,7 @@ class EmbeddingClient:
     @property
     def max_chars(self) -> int:
         """Maximum character length before truncation."""
-        return self.context_length * _CHARS_PER_TOKEN_ESTIMATE
+        return int(self.context_length * _CHARS_PER_TOKEN_ESTIMATE)
 
     def _truncate_text(self, text: str) -> str:
         """Truncate text that would exceed the model's context length.
@@ -249,19 +249,18 @@ class EmbeddingClient:
         total = len(texts)
 
         for i in range(0, total, batch_size):
-            batch = [self._truncate_text(t) for t in texts[i : i + batch_size]]
-            if is_query:
-                batch = [f"query: {t}" for t in batch]
+            truncated = [self._truncate_text(t) for t in texts[i : i + batch_size]]
+            input_batch = [f"query: {t}" for t in truncated] if is_query else truncated
 
             if show_progress:
                 end = min(i + batch_size, total)
                 logger.info("Embedding %d-%d of %d texts", i + 1, end, total)
 
             try:
-                response = self.client.embed(model=self.model, input=batch)
+                response = self.client.embed(model=self.model, input=input_batch)
                 embeddings = response.get("embeddings", [])
 
-                for text, embedding in zip(batch, embeddings, strict=False):
+                for text, embedding in zip(input_batch, embeddings, strict=False):
                     results.append(
                         EmbeddingResult(
                             text=text,
@@ -270,9 +269,33 @@ class EmbeddingClient:
                         )
                     )
             except ResponseError as e:
-                if "not found" in str(e).lower():
+                if "context" in str(e).lower():
+                    # Batch exceeded the model's context window; fall back to individual
+                    # embeddings with a more aggressive truncation limit.
+                    aggressive_limit = self.max_chars // 2
+                    logger.warning(
+                        "Batch context-length error; retrying %d items individually "
+                        "at %d-char limit",
+                        len(truncated),
+                        aggressive_limit,
+                    )
+                    for text in truncated:
+                        safe_text = text[:aggressive_limit]
+                        input_text = f"query: {safe_text}" if is_query else safe_text
+                        item_response = self.client.embed(model=self.model, input=input_text)
+                        item_embeddings = item_response.get("embeddings", [[]])
+                        embedding = item_embeddings[0] if item_embeddings else []
+                        results.append(
+                            EmbeddingResult(
+                                text=input_text,
+                                embedding=embedding,
+                                model=self.model,
+                            )
+                        )
+                elif "not found" in str(e).lower():
                     raise ModelNotFoundError(self.model) from e
-                raise
+                else:
+                    raise
             except Exception as e:
                 if "connection" in str(e).lower():
                     raise OllamaConnectionError(self.host, str(e)) from e
