@@ -141,8 +141,10 @@ class IngestionPipeline:
                 stats.files_failed += 1
                 stats.errors.append(f"{file_path}: {e}")
 
-        # Save manifest
-        self.manifest.save(self.settings.knowledge_base.manifest_path)
+        # Final save — belt-and-suspenders alongside per-file saves in
+        # _process_file, ensures the manifest is consistent even if a file
+        # was skipped via hash check (which doesn't trigger _save_manifest).
+        self._save_manifest()
 
         logger.info(
             "Ingestion complete: %d ingested, %d skipped, %d failed",
@@ -240,8 +242,17 @@ class IngestionPipeline:
             chunk_ids=[chunk.chunk_id for chunk in chunks],
         )
         self.manifest.add_entry(entry)
+        self._save_manifest()
 
         return ("ingested", len(chunks))
+
+    def _save_manifest(self) -> None:
+        """Persist the manifest to disk.
+
+        Called after each file so that progress survives process-level crashes
+        (OOM, SIGKILL, native code faults in PDF/OCR libraries).
+        """
+        self.manifest.save(self.settings.knowledge_base.manifest_path)
 
     def _record_skipped(self, path: Path, relative_path: Path, collection_name: str) -> None:
         """Write a manifest entry for a skipped (empty or unchunkable) file.
@@ -263,6 +274,7 @@ class IngestionPipeline:
             chunk_ids=[],
         )
         self.manifest.add_entry(entry)
+        self._save_manifest()
 
     def _get_relative_path(self, path: Path) -> Path:
         """Get path relative to sources directory.
