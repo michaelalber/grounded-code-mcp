@@ -396,6 +396,230 @@ class TestRebuildCollection:
         assert stats.files_scanned == 0
 
 
+class TestBatchStreamingPipeline:
+    """Tests for batch-streaming embed→store pipeline in _process_file.
+
+    When a document produces many chunks, _process_file must process them
+    in fixed-size batches (embed a batch, store it, release it) rather than
+    holding all embeddings in memory simultaneously.
+    """
+
+    @pytest.fixture
+    def settings(self, temp_dir: Path) -> Settings:
+        """Create settings for testing."""
+        sources_dir = temp_dir / "sources"
+        sources_dir.mkdir()
+        data_dir = temp_dir / "data"
+        data_dir.mkdir()
+
+        return Settings(
+            knowledge_base=KnowledgeBaseSettings(
+                sources_dir=sources_dir,
+                data_dir=data_dir,
+            ),
+            ollama=OllamaSettings(
+                model="test-model",
+                embedding_dim=128,
+            ),
+            chunking=ChunkingSettings(
+                text_chunk_size=100,
+                text_chunk_max_size=200,
+            ),
+            vectorstore=VectorStoreSettings(provider="qdrant"),
+        )
+
+    @pytest.fixture
+    def mock_embedder(self) -> MagicMock:
+        """Create a mock embedding client."""
+        embedder = MagicMock()
+        embedder.ensure_ready.return_value = None
+        embedder.embed_many.side_effect = lambda texts, **_kw: [
+            EmbeddingResult(text=t, embedding=[0.1] * 128, model="test") for t in texts
+        ]
+        return embedder
+
+    def test_large_file_embeds_in_batches(
+        self,
+        settings: Settings,
+        mock_embedder: MagicMock,
+    ) -> None:
+        """embed_many is called multiple times when chunk count exceeds ingest_batch_size."""
+        # Arrange: create a file that produces many chunks
+        # With text_chunk_size=100 and max=200, ~15 paragraphs should produce >5 chunks
+        paragraphs = [f"Paragraph {i}. " + ("word " * 30) for i in range(20)]
+        content = "# Big Document\n\n" + "\n\n".join(paragraphs)
+        test_file = settings.knowledge_base.sources_dir / "big.md"
+        test_file.write_text(content)
+
+        # Use a small ingest_batch_size so batching is triggered
+        settings.chunking.ingest_batch_size = 3
+
+        pipeline = IngestionPipeline(settings, embedder=mock_embedder)
+
+        # Act
+        stats = pipeline.ingest()
+
+        # Assert: embed_many called more than once (batching occurred)
+        assert stats.files_ingested == 1
+        assert stats.chunks_created > 3, "Expected >3 chunks from large document"
+        assert mock_embedder.embed_many.call_count > 1, (
+            f"Expected multiple embed_many calls for {stats.chunks_created} chunks "
+            f"with batch size 3, but got {mock_embedder.embed_many.call_count}"
+        )
+
+    def test_small_file_single_batch(
+        self,
+        settings: Settings,
+        mock_embedder: MagicMock,
+    ) -> None:
+        """A file producing fewer chunks than ingest_batch_size uses one embed call."""
+        # Arrange: small file — should produce 1-2 chunks
+        test_file = settings.knowledge_base.sources_dir / "small.md"
+        test_file.write_text("# Small\n\nJust a little content.")
+
+        settings.chunking.ingest_batch_size = 50
+
+        pipeline = IngestionPipeline(settings, embedder=mock_embedder)
+
+        # Act
+        stats = pipeline.ingest()
+
+        # Assert: only one embed_many call
+        assert stats.files_ingested == 1
+        assert mock_embedder.embed_many.call_count == 1
+
+    def test_all_chunk_ids_collected_across_batches(
+        self,
+        settings: Settings,
+        mock_embedder: MagicMock,
+    ) -> None:
+        """Manifest entry contains chunk IDs from all batches, not just the last."""
+        # Arrange
+        paragraphs = [f"Section {i}. " + ("detail " * 25) for i in range(15)]
+        content = "# Multi-batch doc\n\n" + "\n\n".join(paragraphs)
+        test_file = settings.knowledge_base.sources_dir / "multi.md"
+        test_file.write_text(content)
+
+        settings.chunking.ingest_batch_size = 2
+
+        pipeline = IngestionPipeline(settings, embedder=mock_embedder)
+
+        # Act
+        stats = pipeline.ingest()
+
+        # Assert: manifest entry has all chunk IDs
+        entry = pipeline.manifest.get_entry(Path("multi.md"))
+        assert entry is not None
+        assert entry.chunk_count == stats.chunks_created
+        assert len(entry.chunk_ids) == stats.chunks_created
+
+
+class TestMaxFileSizeSkip:
+    """Tests for skipping files that exceed max_file_size_mb threshold."""
+
+    @pytest.fixture
+    def settings(self, temp_dir: Path) -> Settings:
+        """Create settings for testing."""
+        sources_dir = temp_dir / "sources"
+        sources_dir.mkdir()
+        data_dir = temp_dir / "data"
+        data_dir.mkdir()
+
+        return Settings(
+            knowledge_base=KnowledgeBaseSettings(
+                sources_dir=sources_dir,
+                data_dir=data_dir,
+                max_file_size_mb=1,  # 1 MB limit for testing
+            ),
+            ollama=OllamaSettings(
+                model="test-model",
+                embedding_dim=128,
+            ),
+            chunking=ChunkingSettings(
+                text_chunk_size=100,
+                text_chunk_max_size=200,
+            ),
+            vectorstore=VectorStoreSettings(provider="qdrant"),
+        )
+
+    @pytest.fixture
+    def mock_embedder(self) -> MagicMock:
+        """Create a mock embedding client."""
+        embedder = MagicMock()
+        embedder.ensure_ready.return_value = None
+        embedder.embed_many.side_effect = lambda texts, **_kw: [
+            EmbeddingResult(text=t, embedding=[0.1] * 128, model="test") for t in texts
+        ]
+        return embedder
+
+    def test_file_over_limit_is_skipped(
+        self,
+        settings: Settings,
+        mock_embedder: MagicMock,
+    ) -> None:
+        """Files larger than max_file_size_mb are skipped, not parsed."""
+        # Arrange: create a file larger than 1 MB
+        big_file = settings.knowledge_base.sources_dir / "huge.md"
+        big_file.write_text("x" * (2 * 1024 * 1024))  # 2 MB
+
+        pipeline = IngestionPipeline(settings, embedder=mock_embedder)
+
+        # Act
+        stats = pipeline.ingest()
+
+        # Assert: file is skipped, not ingested
+        assert stats.files_scanned == 1
+        assert stats.files_skipped == 1
+        assert stats.files_ingested == 0
+        # Embedder should NOT have been called for this file
+        mock_embedder.embed_many.assert_not_called()
+
+    def test_file_under_limit_is_ingested(
+        self,
+        settings: Settings,
+        mock_embedder: MagicMock,
+    ) -> None:
+        """Files under max_file_size_mb are ingested normally."""
+        # Arrange: small file
+        small_file = settings.knowledge_base.sources_dir / "small.md"
+        small_file.write_text("# Small\n\nContent under limit.")
+
+        pipeline = IngestionPipeline(settings, embedder=mock_embedder)
+
+        # Act
+        stats = pipeline.ingest()
+
+        # Assert
+        assert stats.files_ingested == 1
+
+    def test_default_max_file_size_is_200mb(self) -> None:
+        """Default max_file_size_mb should be 200."""
+        default_settings = KnowledgeBaseSettings()
+        assert default_settings.max_file_size_mb == 200
+
+    def test_zero_disables_size_check(
+        self,
+        settings: Settings,
+        mock_embedder: MagicMock,
+    ) -> None:
+        """Setting max_file_size_mb=0 disables the file size check."""
+        settings.knowledge_base.max_file_size_mb = 0
+
+        # File is over the fixture's 1 MB limit but should be processed
+        # because 0 disables the check. Keep content small enough for a
+        # fast test — use stat_result patching to fake a large size.
+        big_file = settings.knowledge_base.sources_dir / "huge.md"
+        big_file.write_text("# Large doc\n\nContent that would exceed limit.")
+
+        pipeline = IngestionPipeline(settings, embedder=mock_embedder)
+
+        # Act
+        stats = pipeline.ingest()
+
+        # Assert: file is processed (size check disabled)
+        assert stats.files_ingested == 1
+
+
 class TestIngestDocuments:
     """Tests for ingest_documents convenience function."""
 

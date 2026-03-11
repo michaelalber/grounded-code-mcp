@@ -28,6 +28,16 @@ class TestKnowledgeBaseSettings:
         settings = KnowledgeBaseSettings()
         assert settings.manifest_path == Path(".grounded-code-mcp/manifest.json")
 
+    def test_max_file_size_mb_default(self) -> None:
+        """Test max_file_size_mb defaults to 200."""
+        settings = KnowledgeBaseSettings()
+        assert settings.max_file_size_mb == 200
+
+    def test_max_file_size_mb_configurable(self) -> None:
+        """Test max_file_size_mb can be set."""
+        settings = KnowledgeBaseSettings(max_file_size_mb=50)
+        assert settings.max_file_size_mb == 50
+
 
 class TestOllamaSettings:
     """Tests for OllamaSettings."""
@@ -55,6 +65,16 @@ class TestChunkingSettings:
         assert settings.text_chunk_max_size == 1500
         assert settings.text_chunk_overlap == 200
         assert settings.max_code_chunk_size == 3000
+
+    def test_ingest_batch_size_default(self) -> None:
+        """Test ingest_batch_size defaults to 50."""
+        settings = ChunkingSettings()
+        assert settings.ingest_batch_size == 50
+
+    def test_ingest_batch_size_configurable(self) -> None:
+        """Test ingest_batch_size can be set."""
+        settings = ChunkingSettings(ingest_batch_size=10)
+        assert settings.ingest_batch_size == 10
 
 
 class TestVectorStoreSettings:
