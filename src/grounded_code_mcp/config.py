@@ -20,6 +20,10 @@ class KnowledgeBaseSettings(BaseModel):
     sources_dir: Path = Field(default=Path("sources"))
     data_dir: Path = Field(default=Path(".grounded-code-mcp"))
     manifest_file: str = Field(default="manifest.json")
+    max_file_size_mb: int = Field(
+        default=200,
+        description="Maximum file size in MB. Files larger than this are skipped. 0 disables.",
+    )
 
     @property
     def manifest_path(self) -> Path:
@@ -43,6 +47,10 @@ class ChunkingSettings(BaseModel):
     text_chunk_max_size: int = Field(default=1500)
     text_chunk_overlap: int = Field(default=200)
     max_code_chunk_size: int = Field(default=3000)
+    ingest_batch_size: int = Field(
+        default=50,
+        description="Number of chunks to embed and store per batch during ingestion.",
+    )
 
 
 class VectorStoreSettings(BaseModel):
