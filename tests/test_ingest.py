@@ -274,6 +274,57 @@ class TestIngestionPipeline:
         expected_prefix = settings.vectorstore.collection_prefix
         assert entry.collection == f"{expected_prefix}mycoll"
 
+    def test_manifest_saved_incrementally_after_each_file(
+        self,
+        settings: Settings,
+        mock_embedder: MagicMock,
+    ) -> None:
+        """Test that the manifest is saved to disk after each file, not only at the end.
+
+        If the process is killed mid-batch (OOM, SIGKILL, native crash), files
+        already ingested must be recorded on disk. This prevents the "data in
+        Qdrant but nothing in manifest" scenario that caused dotnet/automation
+        collections to appear perpetually untracked.
+        """
+        from grounded_code_mcp.manifest import Manifest
+
+        # Arrange: create two files in source dir
+        file_a = settings.knowledge_base.sources_dir / "file_a.md"
+        file_a.write_text("# File A\n\nContent for file A.")
+        file_b = settings.knowledge_base.sources_dir / "file_b.md"
+        file_b.write_text("# File B\n\nContent for file B.")
+
+        # Track how many times the manifest exists on disk after embed_many calls.
+        # embed_many is called once per file, so after the first call completes
+        # and _process_file returns, the manifest should be on disk.
+        disk_snapshots: list[int] = []
+        manifest_path = settings.knowledge_base.manifest_path
+        original_embed_many = mock_embedder.embed_many.side_effect
+
+        def embed_and_snapshot(texts: list[str], **_kw: object) -> list[EmbeddingResult]:
+            """After each embed call, the previous file's save should be on disk."""
+            if manifest_path.exists():
+                on_disk = Manifest.load(manifest_path)
+                disk_snapshots.append(len(on_disk.sources))
+            else:
+                disk_snapshots.append(0)
+            return original_embed_many(texts, **_kw)
+
+        mock_embedder.embed_many.side_effect = embed_and_snapshot
+        pipeline = IngestionPipeline(settings, embedder=mock_embedder)
+
+        # Act
+        pipeline.ingest()
+
+        # Assert: by the time we process file_b (second embed_many call),
+        # file_a should already be on disk — so disk_snapshots[1] >= 1
+        assert len(disk_snapshots) == 2, f"Expected 2 embed calls, got {len(disk_snapshots)}"
+        assert disk_snapshots[1] >= 1, (
+            f"After first file was ingested, expected ≥1 entry on disk "
+            f"before second file started, but found {disk_snapshots[1]}. "
+            f"Manifest must be saved incrementally after each file."
+        )
+
 
 class TestRebuildCollection:
     """Tests for IngestionPipeline.rebuild_collection."""
