@@ -180,6 +180,20 @@ class IngestionPipeline:
             else self.settings.get_collection_name(path)
         )
 
+        # Check file size limit before any heavy processing
+        max_mb = self.settings.knowledge_base.max_file_size_mb
+        if max_mb > 0:
+            file_size_mb = path.stat().st_size / (1024 * 1024)
+            if file_size_mb > max_mb:
+                logger.warning(
+                    "Skipping %s: %.1f MB exceeds limit of %d MB",
+                    relative_path,
+                    file_size_mb,
+                    max_mb,
+                )
+                self._record_skipped(path, relative_path, collection_name)
+                return ("skipped", 0)
+
         # Check if file needs processing (use relative path for manifest lookup)
         existing_entry = self.manifest.get_entry(str(relative_path))
         if not force and existing_entry is not None:
@@ -216,19 +230,26 @@ class IngestionPipeline:
 
         logger.debug("Created %d chunks", len(chunks))
 
-        # Generate embeddings
-        texts = [chunk.content for chunk in chunks]
-        embedding_results = self.embedder.embed_many(texts)
-        embeddings = [r.embedding for r in embedding_results]
-
         # Ensure collection exists
         self.store.create_collection(
             collection_name,
             embedding_dim=self.settings.ollama.embedding_dim,
         )
 
-        # Store chunks
-        self.store.add_chunks(collection_name, chunks, embeddings)
+        # Batch-stream: embed a batch, store it, release it.
+        # This prevents holding all embeddings in memory for large documents.
+        batch_size = self.settings.chunking.ingest_batch_size
+        all_chunk_ids: list[str] = []
+
+        for batch_start in range(0, len(chunks), batch_size):
+            batch_chunks = chunks[batch_start : batch_start + batch_size]
+            texts = [chunk.content for chunk in batch_chunks]
+
+            embedding_results = self.embedder.embed_many(texts)
+            embeddings = [r.embedding for r in embedding_results]
+
+            self.store.add_chunks(collection_name, batch_chunks, embeddings)
+            all_chunk_ids.extend(chunk.chunk_id for chunk in batch_chunks)
 
         # Update manifest
         entry = SourceEntry(
@@ -239,7 +260,7 @@ class IngestionPipeline:
             title=parsed.title,
             page_count=parsed.page_count,
             chunk_count=len(chunks),
-            chunk_ids=[chunk.chunk_id for chunk in chunks],
+            chunk_ids=all_chunk_ids,
         )
         self.manifest.add_entry(entry)
         self._save_manifest()
