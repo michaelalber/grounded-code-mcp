@@ -139,6 +139,16 @@ class TestQdrantStore:
         store.delete_chunks("test_collection", [sample_chunks[0].chunk_id])
         assert store.collection_count("test_collection") == 1
 
+    def test_delete_chunks_nonexistent_collection_is_noop(
+        self,
+        store: QdrantStore,
+        sample_chunks: list[Chunk],
+    ) -> None:
+        """Deleting chunks from a missing collection should not raise."""
+        # Arrange: collection was never created (simulates Qdrant data loss / fresh node)
+        # Act + Assert: must not raise
+        store.delete_chunks("nonexistent_collection", [sample_chunks[0].chunk_id])
+
     def test_search(
         self,
         store: QdrantStore,

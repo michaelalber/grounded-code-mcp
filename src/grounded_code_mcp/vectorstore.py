@@ -232,16 +232,33 @@ class QdrantStore(VectorStore):
             )
 
     def delete_chunks(self, collection: str, chunk_ids: list[str]) -> None:
-        """Delete chunks by ID."""
+        """Delete chunks by ID.
+
+        No-op if the collection does not exist (e.g. Qdrant was reset between
+        ingestion runs).  This avoids crashing re-ingest when the vector store
+        has been wiped but the manifest still references old chunk IDs.
+        """
         if not chunk_ids:
             return
 
         from qdrant_client.models import PointIdsList
 
-        self._client.delete(
-            collection_name=collection,
-            points_selector=PointIdsList(points=chunk_ids),  # type: ignore[arg-type]
-        )
+        try:
+            self._client.delete(
+                collection_name=collection,
+                points_selector=PointIdsList(points=chunk_ids),  # type: ignore[arg-type]
+            )
+        except Exception as exc:
+            # Both the remote client (UnexpectedResponse 404) and the local
+            # in-memory client (ValueError) raise when the collection is absent.
+            # Treat a missing collection as "nothing to delete" and continue.
+            msg = str(exc).lower()
+            if "not found" in msg or "doesn't exist" in msg:
+                logger.debug(
+                    "Collection '%s' not found during delete_chunks — skipping", collection
+                )
+                return
+            raise
 
     def search(
         self,
