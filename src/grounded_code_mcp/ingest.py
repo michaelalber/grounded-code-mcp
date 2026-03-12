@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -66,7 +67,9 @@ class IngestionPipeline:
         """
         self.settings = settings
 
-        self.parser = parser or DocumentParser()
+        self.parser = parser or DocumentParser(
+            pdf_page_batch_size=settings.knowledge_base.pdf_page_batch_size,
+        )
         self.chunker = chunker or DocumentChunker.from_settings(settings.chunking)
         self.embedder = embedder or EmbeddingClient.from_settings(settings.ollama)
         self.store = store or create_vector_store(settings)
@@ -80,6 +83,7 @@ class IngestionPipeline:
         *,
         collection: str | None = None,
         force: bool = False,
+        progress_callback: Callable[[Path], None] | None = None,
     ) -> IngestStats:
         """Ingest documents from a path.
 
@@ -87,6 +91,8 @@ class IngestionPipeline:
             path: Path to file or directory. If None, uses sources_dir from settings.
             collection: Target collection name. If None, derived from path.
             force: If True, re-ingest all files regardless of hash.
+            progress_callback: Optional callable invoked with the file path just before
+                each file is processed. Useful for displaying live progress.
 
         Returns:
             IngestStats with results.
@@ -123,6 +129,8 @@ class IngestionPipeline:
 
         # Process each file
         for file_path in files:
+            if progress_callback is not None:
+                progress_callback(file_path)
             try:
                 status, chunk_count = self._process_file(
                     file_path,
@@ -365,6 +373,7 @@ def ingest_documents(
     *,
     collection: str | None = None,
     force: bool = False,
+    progress_callback: Callable[[Path], None] | None = None,
 ) -> IngestStats:
     """Convenience function to ingest documents.
 
@@ -373,9 +382,11 @@ def ingest_documents(
         path: Path to file or directory.
         collection: Target collection name.
         force: If True, re-ingest all files.
+        progress_callback: Optional callable invoked with the file path just before
+            each file is processed.
 
     Returns:
         IngestStats with results.
     """
     pipeline = IngestionPipeline(settings)
-    return pipeline.ingest(path, collection=collection, force=force)
+    return pipeline.ingest(path, collection=collection, force=force, progress_callback=progress_callback)

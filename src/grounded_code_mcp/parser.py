@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -110,16 +111,20 @@ class DocumentParser:
         *,
         enable_ocr: bool = True,
         enable_table_extraction: bool = True,
+        pdf_page_batch_size: int = 0,
     ) -> None:
         """Initialize the parser.
 
         Args:
             enable_ocr: Whether to enable OCR for scanned documents.
             enable_table_extraction: Whether to extract tables from documents.
+            pdf_page_batch_size: Split PDFs into batches of this many pages before
+                passing to Docling. Bounds peak memory for large files. 0 disables.
         """
         self._converter: DocumentConverter | None = None
         self.enable_ocr = enable_ocr
         self.enable_table_extraction = enable_table_extraction
+        self.pdf_page_batch_size = pdf_page_batch_size
 
     def _get_converter(self) -> DocumentConverter:
         """Lazy-load the Docling converter."""
@@ -154,6 +159,10 @@ class DocumentParser:
         # For plain text formats, read the file directly
         if file_type in ("md", "asciidoc", "rst", "txt"):
             return self._parse_plaintext(path, file_type)
+
+        # Large-PDF path: split into page batches before handing to Docling
+        if file_type == "pdf" and self.pdf_page_batch_size > 0:
+            return self._parse_pdf_in_batches(path)
 
         # Use Docling for other formats
         return self._parse_with_docling(path, file_type)
@@ -252,6 +261,83 @@ class DocumentParser:
         except Exception as e:
             logger.exception("Failed to parse document: %s", path)
             raise DocumentParseError(path, str(e)) from e
+
+    def _get_pdf_page_count(self, path: Path) -> int:
+        """Return total page count of a PDF using pypdf.
+
+        Args:
+            path: Path to the PDF file.
+
+        Returns:
+            Total number of pages.
+        """
+        try:
+            from pypdf import PdfReader
+        except ImportError as exc:
+            raise ImportError("pypdf is required for batched PDF parsing: pip install pypdf") from exc
+
+        return len(PdfReader(str(path)).pages)
+
+    def _split_pdf_batch_to_temp(self, path: Path, first: int, last: int, dest: Path) -> None:
+        """Extract pages [first, last) (0-based) from path and write to dest.
+
+        Args:
+            path: Source PDF path.
+            first: First page index (0-based, inclusive).
+            last: Last page index (0-based, exclusive).
+            dest: Destination path for the extracted PDF batch.
+        """
+        from pypdf import PdfReader, PdfWriter
+
+        reader = PdfReader(str(path))
+        writer = PdfWriter()
+        for i in range(first, last):
+            writer.add_page(reader.pages[i])
+        with dest.open("wb") as fh:
+            writer.write(fh)
+
+    def _parse_pdf_in_batches(self, path: Path) -> ParsedDocument:
+        """Parse a large PDF by splitting into page batches and running Docling on each.
+
+        Splits the PDF into temporary files of ``pdf_page_batch_size`` pages,
+        converts each with Docling, concatenates the markdown, and cleans up
+        temp files even if conversion fails.
+
+        Args:
+            path: Path to the source PDF.
+
+        Returns:
+            ParsedDocument with concatenated markdown and total page count.
+
+        Raises:
+            DocumentParseError: If any batch fails to convert.
+        """
+        total = self._get_pdf_page_count(path)
+        markdowns: list[str] = []
+        first = 0
+
+        while first < total:
+            last = min(first + self.pdf_page_batch_size, total)
+
+            with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+                tmp_path = Path(tmp.name)
+
+            try:
+                self._split_pdf_batch_to_temp(path, first, last, tmp_path)
+                batch = self._parse_with_docling(tmp_path, "pdf")
+                markdowns.append(batch.content)
+            finally:
+                tmp_path.unlink(missing_ok=True)
+
+            first = last
+
+        return ParsedDocument(
+            path=path,
+            content="\n\n".join(markdowns),
+            title=None,
+            page_count=total,
+            file_type="pdf",
+        )
 
     def parse_many(
         self,

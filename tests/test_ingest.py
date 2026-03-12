@@ -76,6 +76,14 @@ class TestIngestionPipeline:
         """Create a pipeline with mocked embedder."""
         return IngestionPipeline(settings, embedder=mock_embedder)
 
+    def test_pipeline_passes_pdf_page_batch_size_to_parser(
+        self, settings: Settings, mock_embedder: MagicMock
+    ) -> None:
+        """IngestionPipeline wires pdf_page_batch_size from settings into DocumentParser."""
+        settings.knowledge_base.pdf_page_batch_size = 50
+        pipeline = IngestionPipeline(settings, embedder=mock_embedder)
+        assert pipeline.parser.pdf_page_batch_size == 50
+
     def test_ingest_empty_directory(self, pipeline: IngestionPipeline, settings: Settings) -> None:
         """Test ingesting an empty directory."""
         stats = pipeline.ingest()
@@ -146,6 +154,26 @@ class TestIngestionPipeline:
 
         assert stats.files_scanned == 0
         assert stats.success is True
+
+    def test_progress_callback_called_per_file(
+        self,
+        pipeline: IngestionPipeline,
+        settings: Settings,
+        mock_embedder: MagicMock,
+    ) -> None:
+        """Test that progress_callback is invoked once for each processed file."""
+        # Arrange
+        (settings.knowledge_base.sources_dir / "a.md").write_text("# A\n\nContent A.")
+        (settings.knowledge_base.sources_dir / "b.md").write_text("# B\n\nContent B.")
+        reported: list[Path] = []
+
+        # Act
+        pipeline.ingest(progress_callback=reported.append)
+
+        # Assert
+        assert len(reported) == 2
+        assert all(isinstance(p, Path) for p in reported)
+        assert {p.name for p in reported} == {"a.md", "b.md"}
 
     def test_ingest_handles_embedder_error(self, settings: Settings, temp_dir: Path) -> None:
         """Test handling embedder connection errors."""

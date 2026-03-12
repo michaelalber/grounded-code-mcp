@@ -24,6 +24,13 @@ class KnowledgeBaseSettings(BaseModel):
         default=200,
         description="Maximum file size in MB. Files larger than this are skipped. 0 disables.",
     )
+    pdf_page_batch_size: int = Field(
+        default=0,
+        description=(
+            "Split large PDFs into batches of this many pages before passing to Docling. "
+            "Keeps peak memory bounded for 200MB+ files. 0 disables batching."
+        ),
+    )
 
     @property
     def manifest_path(self) -> Path:
