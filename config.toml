@@ -16,6 +16,9 @@ sources_dir = "sources"
 data_dir = ".grounded-code-mcp"
 # Manifest file name (stored in data_dir)
 manifest_file = "manifest.json"
+# Split large PDFs into batches of this many pages before passing to Docling.
+# Keeps peak memory bounded for large files. 0 disables batching.
+pdf_page_batch_size = 50
 
 [ollama]
 # Embedding model — must match embedding_dim below.
