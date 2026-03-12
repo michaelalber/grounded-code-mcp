@@ -30,11 +30,15 @@ def ingest(force: bool, collection: str | None, path: str | None) -> None:
 
     console.print("[bold]Starting ingestion...[/bold]")
 
+    def _on_file(file_path: Path) -> None:
+        console.print(f"  [dim]Processing:[/dim] {file_path.name}")
+
     stats = ingest_documents(
         settings,
         path=source_path,
         collection=collection,
         force=force,
+        progress_callback=_on_file,
     )
 
     if stats.success:
