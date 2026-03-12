@@ -82,12 +82,15 @@ class TestIngestCommand:
         assert "Skipped: 2" in result.output
         assert "Chunks created: 15" in result.output
         # Verify settings from Settings.load() are passed to ingest_documents
+        call_kwargs = mock_ingest.call_args.kwargs
         mock_ingest.assert_called_once_with(
             mock_settings_cls.load.return_value,
             path=None,
             collection=None,
             force=False,
+            progress_callback=call_kwargs["progress_callback"],
         )
+        assert callable(call_kwargs["progress_callback"])
 
     @patch("grounded_code_mcp.__main__.Settings")
     @patch("grounded_code_mcp.ingest.ingest_documents")
