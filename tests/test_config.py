@@ -38,6 +38,16 @@ class TestKnowledgeBaseSettings:
         settings = KnowledgeBaseSettings(max_file_size_mb=50)
         assert settings.max_file_size_mb == 50
 
+    def test_pdf_page_batch_size_default_is_zero(self) -> None:
+        """Test pdf_page_batch_size defaults to 0 (disabled)."""
+        settings = KnowledgeBaseSettings()
+        assert settings.pdf_page_batch_size == 0
+
+    def test_pdf_page_batch_size_configurable(self) -> None:
+        """Test pdf_page_batch_size can be set."""
+        settings = KnowledgeBaseSettings(pdf_page_batch_size=50)
+        assert settings.pdf_page_batch_size == 50
+
 
 class TestOllamaSettings:
     """Tests for OllamaSettings."""

@@ -292,6 +292,181 @@ class TestDocumentParser:
         assert result.title == "MDX Title"
 
 
+class TestDocumentParserPdfBatching:
+    """Tests for batched PDF parsing via pypdf + Docling."""
+
+    def test_pdf_page_batch_size_default_is_zero(self) -> None:
+        """DocumentParser defaults to disabled batching."""
+        assert DocumentParser().pdf_page_batch_size == 0
+
+    def test_pdf_page_batch_size_configurable(self) -> None:
+        """DocumentParser accepts pdf_page_batch_size kwarg."""
+        assert DocumentParser(pdf_page_batch_size=50).pdf_page_batch_size == 50
+
+    def test_zero_batch_size_does_not_use_batched_path(self, temp_dir: Path) -> None:
+        """pdf_page_batch_size=0 must not invoke _parse_pdf_in_batches."""
+        pdf_file = temp_dir / "test.pdf"
+        pdf_file.write_bytes(b"%PDF-1.4 fake")
+
+        mock_doc = MagicMock()
+        mock_doc.export_to_markdown.return_value = "# Single Pass"
+        mock_doc.title = None
+        mock_doc.pages = [1]
+        mock_result = MagicMock()
+        mock_result.document = mock_doc
+        mock_converter = MagicMock()
+        mock_converter.convert.return_value = mock_result
+
+        parser = DocumentParser(pdf_page_batch_size=0)
+        with (
+            patch.object(parser, "_parse_pdf_in_batches", side_effect=AssertionError("must not be called")),
+            patch.object(parser, "_get_converter", return_value=mock_converter),
+        ):
+            result = parser.parse(pdf_file)
+
+        assert result.content == "# Single Pass"
+        mock_converter.convert.assert_called_once()
+
+    def test_batched_pdf_calls_docling_per_batch(self, temp_dir: Path) -> None:
+        """4 pages with batch_size=2 calls Docling exactly twice."""
+        pdf_file = temp_dir / "large.pdf"
+        pdf_file.write_bytes(b"%PDF-1.4 fake")
+
+        mock_doc = MagicMock()
+        mock_doc.export_to_markdown.return_value = "# Batch content"
+        mock_doc.title = None
+        mock_doc.pages = [1, 2]
+        mock_result = MagicMock()
+        mock_result.document = mock_doc
+        mock_converter = MagicMock()
+        mock_converter.convert.return_value = mock_result
+
+        parser = DocumentParser(pdf_page_batch_size=2)
+        with (
+            patch.object(parser, "_get_pdf_page_count", return_value=4),
+            patch.object(parser, "_split_pdf_batch_to_temp"),
+            patch.object(parser, "_get_converter", return_value=mock_converter),
+        ):
+            parser.parse(pdf_file)
+
+        assert mock_converter.convert.call_count == 2
+
+    def test_batched_pdf_concatenates_markdown(self, temp_dir: Path) -> None:
+        """Markdown from each batch is joined into a single document."""
+        pdf_file = temp_dir / "large.pdf"
+        pdf_file.write_bytes(b"%PDF-1.4 fake")
+
+        call_count = 0
+
+        def make_result(_path: str) -> MagicMock:
+            nonlocal call_count
+            call_count += 1
+            doc = MagicMock()
+            doc.export_to_markdown.return_value = f"# Batch {call_count}"
+            doc.title = None
+            doc.pages = [1, 2]
+            result = MagicMock()
+            result.document = doc
+            return result
+
+        mock_converter = MagicMock()
+        mock_converter.convert.side_effect = make_result
+
+        parser = DocumentParser(pdf_page_batch_size=2)
+        with (
+            patch.object(parser, "_get_pdf_page_count", return_value=4),
+            patch.object(parser, "_split_pdf_batch_to_temp"),
+            patch.object(parser, "_get_converter", return_value=mock_converter),
+        ):
+            result = parser.parse(pdf_file)
+
+        assert "# Batch 1" in result.content
+        assert "# Batch 2" in result.content
+
+    def test_batched_pdf_page_count_is_total(self, temp_dir: Path) -> None:
+        """page_count in the result reflects total pages, not just one batch."""
+        pdf_file = temp_dir / "large.pdf"
+        pdf_file.write_bytes(b"%PDF-1.4 fake")
+
+        mock_doc = MagicMock()
+        mock_doc.export_to_markdown.return_value = "# Content"
+        mock_doc.title = None
+        mock_doc.pages = [1, 2]
+        mock_result = MagicMock()
+        mock_result.document = mock_doc
+        mock_converter = MagicMock()
+        mock_converter.convert.return_value = mock_result
+
+        parser = DocumentParser(pdf_page_batch_size=2)
+        with (
+            patch.object(parser, "_get_pdf_page_count", return_value=6),
+            patch.object(parser, "_split_pdf_batch_to_temp"),
+            patch.object(parser, "_get_converter", return_value=mock_converter),
+        ):
+            result = parser.parse(pdf_file)
+
+        assert result.page_count == 6
+
+    def test_batched_pdf_cleans_up_temp_file_on_success(self, temp_dir: Path) -> None:
+        """Temp PDF written per batch is deleted after successful conversion."""
+        pdf_file = temp_dir / "large.pdf"
+        pdf_file.write_bytes(b"%PDF-1.4 fake")
+
+        created_paths: list[Path] = []
+
+        def track_split(_src: Path, _first: int, _last: int, dest: Path) -> None:
+            dest.write_bytes(b"%PDF temp")
+            created_paths.append(dest)
+
+        mock_doc = MagicMock()
+        mock_doc.export_to_markdown.return_value = "# Content"
+        mock_doc.title = None
+        mock_doc.pages = [1, 2]
+        mock_result = MagicMock()
+        mock_result.document = mock_doc
+        mock_converter = MagicMock()
+        mock_converter.convert.return_value = mock_result
+
+        parser = DocumentParser(pdf_page_batch_size=2)
+        with (
+            patch.object(parser, "_get_pdf_page_count", return_value=2),
+            patch.object(parser, "_split_pdf_batch_to_temp", side_effect=track_split),
+            patch.object(parser, "_get_converter", return_value=mock_converter),
+        ):
+            parser.parse(pdf_file)
+
+        assert created_paths
+        for p in created_paths:
+            assert not p.exists(), f"Temp file was not cleaned up: {p}"
+
+    def test_batched_pdf_cleans_up_temp_file_on_error(self, temp_dir: Path) -> None:
+        """Temp PDF is deleted even when Docling raises."""
+        pdf_file = temp_dir / "large.pdf"
+        pdf_file.write_bytes(b"%PDF-1.4 fake")
+
+        created_paths: list[Path] = []
+
+        def track_split(_src: Path, _first: int, _last: int, dest: Path) -> None:
+            dest.write_bytes(b"%PDF temp")
+            created_paths.append(dest)
+
+        mock_converter = MagicMock()
+        mock_converter.convert.side_effect = RuntimeError("Docling exploded")
+
+        parser = DocumentParser(pdf_page_batch_size=2)
+        with (
+            patch.object(parser, "_get_pdf_page_count", return_value=2),
+            patch.object(parser, "_split_pdf_batch_to_temp", side_effect=track_split),
+            patch.object(parser, "_get_converter", return_value=mock_converter),
+            pytest.raises(DocumentParseError),
+        ):
+            parser.parse(pdf_file)
+
+        assert created_paths
+        for p in created_paths:
+            assert not p.exists(), f"Temp file was not cleaned up: {p}"
+
+
 class TestScanDirectory:
     """Tests for scan_directory function."""
 
