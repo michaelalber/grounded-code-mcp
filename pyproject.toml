@@ -33,6 +33,7 @@ dependencies = [
     "click>=8.0",
     "rich>=13.0",
     "tomli; python_version < '3.11'",
+    "pypdf>=4.0",
 ]
 
 [project.optional-dependencies]
