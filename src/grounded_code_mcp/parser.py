@@ -281,18 +281,19 @@ class DocumentParser:
     def _split_pdf_batch_to_temp(self, path: Path, first: int, last: int, dest: Path) -> None:
         """Extract pages [first, last) (0-based) from path and write to dest.
 
+        Uses PdfWriter.append() with a page range to avoid the deep object-graph
+        clone that triggers RecursionError on complex PDFs (e.g. Telerik docs).
+
         Args:
             path: Source PDF path.
             first: First page index (0-based, inclusive).
             last: Last page index (0-based, exclusive).
             dest: Destination path for the extracted PDF batch.
         """
-        from pypdf import PdfReader, PdfWriter
+        from pypdf import PdfWriter
 
-        reader = PdfReader(str(path))
         writer = PdfWriter()
-        for i in range(first, last):
-            writer.add_page(reader.pages[i])
+        writer.append(str(path), pages=(first, last))
         with dest.open("wb") as fh:
             writer.write(fh)
 
