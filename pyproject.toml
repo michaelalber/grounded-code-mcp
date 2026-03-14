@@ -26,6 +26,7 @@ classifiers = [
 dependencies = [
     "fastmcp<3",
     "docling>=2.70.0",
+    "pypdf>=4.0",
     "qdrant-client",
     "chromadb>=1.0.0",
     "ollama",
