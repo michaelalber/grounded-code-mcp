@@ -362,12 +362,13 @@ class TestGetHelpfulErrorMessage:
     """Tests for get_helpful_error_message function."""
 
     def test_connection_error_message(self) -> None:
-        """Test message for connection error."""
+        """Test message for connection error — host must not appear in client-facing text."""
         error = OllamaConnectionError("http://localhost:11434", "Connection refused")
         message = get_helpful_error_message(error)
 
         assert "Cannot connect" in message
-        assert "localhost:11434" in message
+        # Host URL must be redacted from the tool response (OWASP MCP §6 / L1 fix)
+        assert "localhost:11434" not in message
         assert "systemctl" in message
 
     def test_model_not_found_message(self) -> None:

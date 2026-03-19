@@ -21,6 +21,38 @@ MAX_N_RESULTS = 50
 MIN_N_RESULTS = 1
 MIN_SCORE = 0.0
 MAX_SCORE = 1.0
+MAX_SOURCE_PATH_CHARS = 256
+
+# Recognised programming languages for the code-search filter (L3).
+# Unknown values are silently ignored rather than forwarded to the store.
+KNOWN_LANGUAGES: frozenset[str] = frozenset(
+    {
+        "python",
+        "csharp",
+        "javascript",
+        "typescript",
+        "java",
+        "go",
+        "rust",
+        "cpp",
+        "c",
+        "sql",
+        "bash",
+        "shell",
+        "yaml",
+        "json",
+        "html",
+        "css",
+        "markdown",
+        "php",
+        "ruby",
+        "scala",
+        "kotlin",
+        "swift",
+        "r",
+        "text",
+    }
+)
 
 # Create the FastMCP server
 mcp = FastMCP("grounded-code-mcp")
@@ -191,9 +223,11 @@ def _search_code_examples_impl(
     result = embedder.embed(query, is_query=True)
     query_embedding = result.embedding
 
-    # Build metadata filter for code blocks
+    # Build metadata filter for code blocks.
+    # L3: only forward recognised language values; unknown strings are ignored
+    # rather than passed to the store, preventing crafted filter injection.
     filter_metadata: dict[str, Any] = {"is_code": True}
-    if language:
+    if language and language in KNOWN_LANGUAGES:
         filter_metadata["code_language"] = language
 
     # Search all collections
@@ -280,11 +314,14 @@ def _list_sources_impl(collection: str | None = None) -> list[dict[str, Any]]:
 
 def _get_source_info_impl(source_path: str) -> dict[str, Any]:
     """Get detailed information about a specific source."""
+    # L2: cap length before lookup; do not echo raw input in the error response.
+    source_path = source_path[:MAX_SOURCE_PATH_CHARS]
+
     manifest = get_manifest()
     entry = manifest.get_entry(source_path)
 
     if not entry:
-        return {"error": f"Source not found: {source_path}"}
+        return {"error": "Source not found"}
 
     return {
         "path": entry.path,
@@ -400,6 +437,15 @@ def run_server(
     initialize()
 
     if transport:
+        # L4: warn when binding HTTP transport to a non-loopback address.
+        # This server has no authentication; exposing it beyond localhost is
+        # a deliberate opt-in that operators must acknowledge (OWASP MCP §1).
+        if host != "127.0.0.1":
+            logger.warning(
+                "HTTP transport bound to %s — this server has no authentication. "
+                "Use 127.0.0.1 (loopback) unless you have added your own auth layer.",
+                host,
+            )
         mcp.run(transport=transport, host=host, port=port)
     else:
         mcp.run()

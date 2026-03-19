@@ -326,8 +326,11 @@ def get_helpful_error_message(error: Exception) -> str:
         Human-readable error message with suggestions.
     """
     if isinstance(error, OllamaConnectionError):
+        # Log the host detail for operators; do not expose infrastructure
+        # URLs in the tool response returned to the LLM client (OWASP MCP §6).
+        logger.error("Cannot connect to Ollama at %s: %s", error.host, error)
         return (
-            f"Cannot connect to Ollama at {error.host}.\n"
+            "Cannot connect to Ollama. "
             "Please ensure Ollama is running:\n"
             "  - Linux: systemctl --user start ollama\n"
             "  - macOS: ollama serve\n"
