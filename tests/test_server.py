@@ -520,6 +520,159 @@ class TestInputValidation:
             server_module._manifest = None
 
 
+class TestLowSeverityFindings:
+    """Regression tests for L1-L4 low-severity security findings."""
+
+    @pytest.fixture
+    def settings(self, temp_dir: Path) -> Settings:
+        sources_dir = temp_dir / "sources"
+        sources_dir.mkdir()
+        data_dir = temp_dir / "data"
+        data_dir.mkdir()
+        return Settings(
+            knowledge_base=KnowledgeBaseSettings(sources_dir=sources_dir, data_dir=data_dir),
+            ollama=OllamaSettings(model="test-model", embedding_dim=128),
+            vectorstore=VectorStoreSettings(provider="qdrant", collection_prefix="grounded_"),
+            collections={"sources/python": "python"},
+        )
+
+    @pytest.fixture
+    def mock_store(self) -> MagicMock:
+        store = MagicMock()
+        store.list_collections.return_value = ["grounded_python"]
+        store.search.return_value = []
+        return store
+
+    @pytest.fixture
+    def mock_manifest(self) -> Manifest:
+        manifest = Manifest()
+        manifest.add_entry(
+            SourceEntry(
+                path="docs/test.md",
+                sha256="abc123",
+                collection="grounded_python",
+                file_type="md",
+                title="Test Document",
+                chunk_count=5,
+            )
+        )
+        return manifest
+
+    # L1: Ollama host must not appear in tool error output
+
+    def test_search_knowledge_ollama_error_does_not_expose_host(
+        self, settings: Settings
+    ) -> None:
+        """OllamaConnectionError must not leak the host URL into the tool response."""
+        from grounded_code_mcp.embeddings import OllamaConnectionError
+
+        mock_embedder = MagicMock()
+        mock_embedder.ensure_ready.side_effect = OllamaConnectionError(
+            "http://internal-host:11434", "Connection refused"
+        )
+
+        with (
+            patch("grounded_code_mcp.server._settings", settings),
+            patch("grounded_code_mcp.server._embedder", mock_embedder),
+        ):
+            results = _search_knowledge_impl("query")
+
+        assert len(results) == 1
+        assert "error" in results[0]
+        assert "internal-host" not in results[0]["error"]
+        assert "11434" not in results[0]["error"]
+
+    # L2: source_path must be capped and not echoed raw in error output
+
+    def test_get_source_info_truncates_oversized_path(
+        self, settings: Settings, mock_manifest: "Manifest"
+    ) -> None:
+        """A source_path longer than MAX_SOURCE_PATH_CHARS must not be echoed raw."""
+        oversized = "x" * 10_000
+        with (
+            patch("grounded_code_mcp.server._settings", settings),
+            patch("grounded_code_mcp.server._manifest", mock_manifest),
+        ):
+            result = _get_source_info_impl(oversized)
+
+        assert "error" in result
+        # The raw 10 000-char string must not appear verbatim in the error
+        assert len(result["error"]) < 500
+
+    # L3: unknown language must not be forwarded to the store
+
+    def test_search_code_examples_ignores_unknown_language(
+        self, settings: Settings, mock_store: MagicMock
+    ) -> None:
+        """An unrecognised language value must not be forwarded as a filter."""
+        mock_embedder = MagicMock()
+        mock_embedder.ensure_ready.return_value = None
+        mock_embedder.embed.return_value = EmbeddingResult(
+            text="test", embedding=[0.1] * 128, model="test"
+        )
+
+        with (
+            patch("grounded_code_mcp.server._settings", settings),
+            patch("grounded_code_mcp.server._embedder", mock_embedder),
+            patch("grounded_code_mcp.server.create_vector_store", return_value=mock_store),
+        ):
+            _search_code_examples_impl("query", language="'; DROP TABLE chunks; --")
+
+        for call in mock_store.search.call_args_list:
+            filter_meta = call[1].get("filter_metadata", {})
+            assert "code_language" not in filter_meta
+
+    def test_search_code_examples_passes_known_language_filter(
+        self, settings: Settings, mock_store: MagicMock
+    ) -> None:
+        """A recognised language must still be forwarded as a filter."""
+        mock_embedder = MagicMock()
+        mock_embedder.ensure_ready.return_value = None
+        mock_embedder.embed.return_value = EmbeddingResult(
+            text="test", embedding=[0.1] * 128, model="test"
+        )
+
+        with (
+            patch("grounded_code_mcp.server._settings", settings),
+            patch("grounded_code_mcp.server._embedder", mock_embedder),
+            patch("grounded_code_mcp.server.create_vector_store", return_value=mock_store),
+        ):
+            _search_code_examples_impl("query", language="python")
+
+        call_args = mock_store.search.call_args
+        assert call_args[1]["filter_metadata"]["code_language"] == "python"
+
+    # L4: non-loopback HTTP bind must emit a warning
+
+    def test_run_server_warns_when_http_transport_binds_to_non_loopback(self) -> None:
+        """run_server() must log a warning when HTTP transport is bound to 0.0.0.0."""
+        with (
+            patch("grounded_code_mcp.server.initialize"),
+            patch("grounded_code_mcp.server.mcp"),
+            patch("grounded_code_mcp.server.logger") as mock_logger,
+        ):
+            run_server(transport="streamable-http", host="0.0.0.0")  # noqa: S104
+
+        mock_logger.warning.assert_called()
+        warn_msg = mock_logger.warning.call_args[0][0]
+        non_loopback = "0.0.0.0"  # noqa: S104
+        assert non_loopback in warn_msg or "loopback" in warn_msg.lower()
+
+    def test_run_server_no_warning_for_loopback_host(self) -> None:
+        """run_server() must not warn when bound to 127.0.0.1."""
+        with (
+            patch("grounded_code_mcp.server.initialize"),
+            patch("grounded_code_mcp.server.mcp"),
+            patch("grounded_code_mcp.server.logger") as mock_logger,
+        ):
+            run_server(transport="streamable-http", host="127.0.0.1")
+
+        non_loopback = "0.0.0.0"  # noqa: S104
+        for call in mock_logger.warning.call_args_list:
+            assert "loopback" not in str(call).lower()
+            assert non_loopback not in str(call)
+
+
 class TestInitialize:
     """Tests for server initialization."""
 
