@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import threading
 from typing import Any, Literal
 
 from fastmcp import FastMCP
@@ -14,6 +15,13 @@ from grounded_code_mcp.vectorstore import SearchResult, create_vector_store
 
 logger = logging.getLogger(__name__)
 
+# Input validation constants
+MAX_QUERY_CHARS = 4_000  # ~1 000 tokens; well inside the 8 192-token model limit
+MAX_N_RESULTS = 50
+MIN_N_RESULTS = 1
+MIN_SCORE = 0.0
+MAX_SCORE = 1.0
+
 # Create the FastMCP server
 mcp = FastMCP("grounded-code-mcp")
 
@@ -21,6 +29,7 @@ mcp = FastMCP("grounded-code-mcp")
 _settings: Settings | None = None
 _embedder: EmbeddingClient | None = None
 _manifest: Manifest | None = None
+_init_lock = threading.Lock()
 
 
 def initialize(settings: Settings | None = None) -> None:
@@ -31,9 +40,14 @@ def initialize(settings: Settings | None = None) -> None:
     """
     global _settings, _embedder, _manifest
 
-    _settings = settings or Settings.load()
-    _embedder = EmbeddingClient.from_settings(_settings.ollama)
-    _manifest = Manifest.load_or_create(_settings.knowledge_base.manifest_path)
+    with _init_lock:
+        if _settings is not None:
+            return
+        resolved = settings or Settings.load()
+        _embedder = EmbeddingClient.from_settings(resolved.ollama)
+        _manifest = Manifest.load_or_create(resolved.knowledge_base.manifest_path)
+        # Assign last so other threads see a fully initialised state
+        _settings = resolved
 
 
 def get_settings() -> Settings:
@@ -96,6 +110,20 @@ def _search_knowledge_impl(
 ) -> list[dict[str, Any]]:
     """Search the knowledge base for relevant documentation."""
     settings = get_settings()
+
+    # M2: cap query length before sending to the embedding model
+    query = query[:MAX_QUERY_CHARS]
+
+    # M1: clamp numeric parameters to safe ranges
+    n_results = max(MIN_N_RESULTS, min(n_results, MAX_N_RESULTS))
+    min_score = max(MIN_SCORE, min(min_score, MAX_SCORE))
+
+    # M3: validate collection against the configured allowlist
+    if collection is not None:
+        known_collections = set(settings.collections.values())
+        if collection not in known_collections:
+            return [{"error": f"Unknown collection: {collection!r}"}]
+
     embedder = get_embedder()
     store = create_vector_store(settings)
 
@@ -143,6 +171,13 @@ def _search_code_examples_impl(
 ) -> list[dict[str, Any]]:
     """Search for code examples in the knowledge base."""
     settings = get_settings()
+
+    # M2: cap query length before sending to the embedding model
+    query = query[:MAX_QUERY_CHARS]
+
+    # M1: clamp n_results to safe range
+    n_results = max(MIN_N_RESULTS, min(n_results, MAX_N_RESULTS))
+
     embedder = get_embedder()
     store = create_vector_store(settings)
 

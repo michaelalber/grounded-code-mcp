@@ -46,6 +46,7 @@ class TestServerTools:
                 embedding_dim=128,
             ),
             vectorstore=VectorStoreSettings(provider="qdrant"),
+            collections={"sources/python": "python", "sources/docs": "docs"},
         )
 
     @pytest.fixture
@@ -286,6 +287,237 @@ class TestServerTools:
             result = _get_source_info_impl("nonexistent.md")
 
         assert "error" in result
+
+
+class TestInputValidation:
+    """Tests for MCP tool input validation (M1-M4)."""
+
+    @pytest.fixture
+    def settings(self, temp_dir: Path) -> Settings:
+        sources_dir = temp_dir / "sources"
+        sources_dir.mkdir()
+        data_dir = temp_dir / "data"
+        data_dir.mkdir()
+        return Settings(
+            knowledge_base=KnowledgeBaseSettings(
+                sources_dir=sources_dir,
+                data_dir=data_dir,
+            ),
+            ollama=OllamaSettings(model="test-model", embedding_dim=128),
+            vectorstore=VectorStoreSettings(
+                provider="qdrant", collection_prefix="grounded_"
+            ),
+            collections={"sources/python": "python", "sources/internal": "internal"},
+        )
+
+    @pytest.fixture
+    def mock_embedder(self) -> MagicMock:
+        embedder = MagicMock()
+        embedder.ensure_ready.return_value = None
+        embedder.embed.return_value = EmbeddingResult(
+            text="test", embedding=[0.1] * 128, model="test"
+        )
+        return embedder
+
+    @pytest.fixture
+    def mock_store(self) -> MagicMock:
+        store = MagicMock()
+        store.list_collections.return_value = ["grounded_python", "grounded_internal"]
+        store.search.return_value = []
+        return store
+
+    # M1: n_results clamping
+
+    def test_search_knowledge_clamps_n_results_above_maximum(
+        self,
+        settings: Settings,
+        mock_embedder: MagicMock,
+        mock_store: MagicMock,
+    ) -> None:
+        """n_results > 50 must be clamped to 50 before querying the store."""
+        with (
+            patch("grounded_code_mcp.server._settings", settings),
+            patch("grounded_code_mcp.server._embedder", mock_embedder),
+            patch("grounded_code_mcp.server.create_vector_store", return_value=mock_store),
+        ):
+            _search_knowledge_impl("query", n_results=1_000_000)
+
+        for call in mock_store.search.call_args_list:
+            assert call[1]["n_results"] <= 50
+
+    def test_search_knowledge_clamps_n_results_below_minimum(
+        self,
+        settings: Settings,
+        mock_embedder: MagicMock,
+        mock_store: MagicMock,
+    ) -> None:
+        """n_results < 1 must be clamped to 1."""
+        with (
+            patch("grounded_code_mcp.server._settings", settings),
+            patch("grounded_code_mcp.server._embedder", mock_embedder),
+            patch("grounded_code_mcp.server.create_vector_store", return_value=mock_store),
+        ):
+            _search_knowledge_impl("query", n_results=0)
+
+        for call in mock_store.search.call_args_list:
+            assert call[1]["n_results"] >= 1
+
+    def test_search_knowledge_clamps_min_score_above_one(
+        self,
+        settings: Settings,
+        mock_embedder: MagicMock,
+        mock_store: MagicMock,
+    ) -> None:
+        """min_score > 1.0 must be clamped to 1.0."""
+        with (
+            patch("grounded_code_mcp.server._settings", settings),
+            patch("grounded_code_mcp.server._embedder", mock_embedder),
+            patch("grounded_code_mcp.server.create_vector_store", return_value=mock_store),
+        ):
+            _search_knowledge_impl("query", min_score=99.0)
+
+        for call in mock_store.search.call_args_list:
+            assert call[1]["min_score"] <= 1.0
+
+    def test_search_knowledge_clamps_min_score_below_zero(
+        self,
+        settings: Settings,
+        mock_embedder: MagicMock,
+        mock_store: MagicMock,
+    ) -> None:
+        """min_score < 0.0 must be clamped to 0.0."""
+        with (
+            patch("grounded_code_mcp.server._settings", settings),
+            patch("grounded_code_mcp.server._embedder", mock_embedder),
+            patch("grounded_code_mcp.server.create_vector_store", return_value=mock_store),
+        ):
+            _search_knowledge_impl("query", min_score=-5.0)
+
+        for call in mock_store.search.call_args_list:
+            assert call[1]["min_score"] >= 0.0
+
+    def test_search_code_examples_clamps_n_results_above_maximum(
+        self,
+        settings: Settings,
+        mock_embedder: MagicMock,
+        mock_store: MagicMock,
+    ) -> None:
+        """n_results > 50 must be clamped in search_code_examples too."""
+        with (
+            patch("grounded_code_mcp.server._settings", settings),
+            patch("grounded_code_mcp.server._embedder", mock_embedder),
+            patch("grounded_code_mcp.server.create_vector_store", return_value=mock_store),
+        ):
+            _search_code_examples_impl("query", n_results=9999)
+
+        for call in mock_store.search.call_args_list:
+            assert call[1]["n_results"] <= 50
+
+    # M2: query length cap
+
+    def test_search_knowledge_truncates_oversized_query(
+        self,
+        settings: Settings,
+        mock_embedder: MagicMock,
+        mock_store: MagicMock,
+    ) -> None:
+        """A query longer than MAX_QUERY_CHARS must be truncated before embedding."""
+        oversized = "x" * 100_000
+
+        with (
+            patch("grounded_code_mcp.server._settings", settings),
+            patch("grounded_code_mcp.server._embedder", mock_embedder),
+            patch("grounded_code_mcp.server.create_vector_store", return_value=mock_store),
+        ):
+            _search_knowledge_impl(oversized)
+
+        embedded_text = mock_embedder.embed.call_args[0][0]
+        assert len(embedded_text) <= 4_000
+
+    def test_search_code_examples_truncates_oversized_query(
+        self,
+        settings: Settings,
+        mock_embedder: MagicMock,
+        mock_store: MagicMock,
+    ) -> None:
+        """search_code_examples must also truncate oversized queries."""
+        oversized = "y" * 100_000
+
+        with (
+            patch("grounded_code_mcp.server._settings", settings),
+            patch("grounded_code_mcp.server._embedder", mock_embedder),
+            patch("grounded_code_mcp.server.create_vector_store", return_value=mock_store),
+        ):
+            _search_code_examples_impl(oversized)
+
+        embedded_text = mock_embedder.embed.call_args[0][0]
+        assert len(embedded_text) <= 4_000
+
+    # M3: collection allowlist
+
+    def test_search_knowledge_rejects_unknown_collection(
+        self,
+        settings: Settings,
+        mock_embedder: MagicMock,
+        mock_store: MagicMock,
+    ) -> None:
+        """An unrecognised collection name must return an error, not query the store."""
+        with (
+            patch("grounded_code_mcp.server._settings", settings),
+            patch("grounded_code_mcp.server._embedder", mock_embedder),
+            patch("grounded_code_mcp.server.create_vector_store", return_value=mock_store),
+        ):
+            results = _search_knowledge_impl("query", collection="../../evil")
+
+        assert len(results) == 1
+        assert "error" in results[0]
+        mock_store.search.assert_not_called()
+
+    def test_search_knowledge_accepts_known_collection(
+        self,
+        settings: Settings,
+        mock_embedder: MagicMock,
+        mock_store: MagicMock,
+    ) -> None:
+        """A recognised collection suffix must pass through and query the store."""
+        with (
+            patch("grounded_code_mcp.server._settings", settings),
+            patch("grounded_code_mcp.server._embedder", mock_embedder),
+            patch("grounded_code_mcp.server.create_vector_store", return_value=mock_store),
+        ):
+            _search_knowledge_impl("query", collection="python")
+
+        mock_store.search.assert_called_once()
+
+    # M4: initialize idempotency (lock-protected re-init)
+
+    def test_initialize_is_idempotent_when_already_initialized(
+        self, temp_dir: Path
+    ) -> None:
+        """Calling initialize() a second time must not overwrite existing state."""
+        import grounded_code_mcp.server as server_module
+
+        first_settings = Settings(
+            knowledge_base=KnowledgeBaseSettings(
+                sources_dir=temp_dir / "sources",
+                data_dir=temp_dir / "data",
+            )
+        )
+        (temp_dir / "sources").mkdir()
+        (temp_dir / "data").mkdir()
+
+        try:
+            initialize(first_settings)
+            captured = server_module._settings
+
+            # Second call with different (None → defaults) settings must be a no-op
+            initialize()
+
+            assert server_module._settings is captured
+        finally:
+            server_module._settings = None
+            server_module._embedder = None
+            server_module._manifest = None
 
 
 class TestInitialize:
