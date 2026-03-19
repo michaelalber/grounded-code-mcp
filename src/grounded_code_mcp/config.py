@@ -177,7 +177,7 @@ class Settings(BaseModel):
         source_str = str(source_path)
 
         for prefix, collection in self.collections.items():
-            if source_str.startswith(prefix):
+            if source_str == prefix or source_str.startswith(prefix + "/"):
                 return f"{self.vectorstore.collection_prefix}{collection}"
 
         # Fallback: use first subdirectory under sources_dir

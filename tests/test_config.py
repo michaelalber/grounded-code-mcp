@@ -223,6 +223,25 @@ class TestSettings:
         result = settings.get_collection_name(Path("sources/python/docs/file.md"))
         assert result == "test_python"
 
+    def test_get_collection_name_no_false_prefix_match(self) -> None:
+        """A path under sources/internal-extra must not match sources/internal."""
+        settings = Settings(
+            collections={"sources/internal": "internal"},
+            vectorstore=VectorStoreSettings(collection_prefix="test_"),
+            knowledge_base=KnowledgeBaseSettings(sources_dir=Path("sources")),
+        )
+        result = settings.get_collection_name(Path("sources/internal-extra/file.md"))
+        assert result != "test_internal"
+
+    def test_get_collection_name_exact_dir_match(self) -> None:
+        """A path directly inside the mapped directory must match."""
+        settings = Settings(
+            collections={"sources/internal": "internal"},
+            vectorstore=VectorStoreSettings(collection_prefix="test_"),
+        )
+        result = settings.get_collection_name(Path("sources/internal/file.md"))
+        assert result == "test_internal"
+
     def test_get_collection_name_fallback(self) -> None:
         """Test collection name fallback to directory name."""
         settings = Settings(
