@@ -1,5 +1,6 @@
 """Tests for CLI commands."""
 
+from importlib.metadata import version
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -14,7 +15,7 @@ def test_cli_version() -> None:
     runner = CliRunner()
     result = runner.invoke(cli, ["--version"])
     assert result.exit_code == 0
-    assert "0.1.0" in result.output
+    assert version("grounded-code-mcp") in result.output
 
 
 def test_cli_help() -> None:
