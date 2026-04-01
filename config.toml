@@ -16,6 +16,9 @@ sources_dir = "sources"
 data_dir = ".grounded-code-mcp"
 # Manifest file name (stored in data_dir)
 manifest_file = "manifest.json"
+# Maximum file size in MB. Files larger than this are skipped. 0 disables the check.
+# Set high enough for large vendor PDFs (e.g. Telerik UI for Blazor ~221 MB).
+max_file_size_mb = 500
 # Split large PDFs into batches of this many pages before passing to Docling.
 # Keeps peak memory bounded for large files. 0 disables batching.
 pdf_page_batch_size = 50
