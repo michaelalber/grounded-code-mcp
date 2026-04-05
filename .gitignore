@@ -73,3 +73,5 @@ sources/*/*
 !sources/*/README.md
 logs/
 uv.lock
+thoughts/shared/progress/
+thoughts/shared/sessions/
