@@ -183,6 +183,8 @@ Collections are mapped from source directories in `config.toml`. The server prep
 |-----------|-------------------------------------|-------------------|
 | `sources/internal` | `internal` | Engineering standards, XP/TDD/CD practices, agile, DDD, security frameworks |
 | `sources/patterns` | `patterns` | Design patterns, clean code, dependency injection, CQRS |
+| `sources/architecture` | `architecture` | Software architecture, distributed systems, SRE, 12-Factor, C4, arc42 |
+| `sources/systems-thinking` | `systems_thinking` | Systems thinking, feedback loops, Meadows leverage points, chaos engineering |
 | `sources/dotnet` | `dotnet` | .NET/C# APIs, ASP.NET Core, Entity Framework, migration guides |
 | `sources/python` | `python` | Python language, testing, FastAPI, Pydantic, FastMCP, ML |
 | `sources/databases` | `databases` | SQL, relational theory, PostgreSQL |
@@ -191,6 +193,13 @@ Collections are mapped from source directories in `config.toml`. The server prep
 | `sources/4d-legacy` | `4d_legacy` | 4D platform docs for 4D → .NET migration (minimal LLM training coverage) |
 | `sources/php` | `php` | PHP manual, PHP best practices, Laravel (multiple versions) |
 | `sources/javascript` | `javascript` | JavaScript, TypeScript, Vue.js, jQuery, ECMAScript spec |
+| `sources/ui-ux` | `ui_ux` | UI/UX, Laws of UX, Nielsen heuristics, WCAG 2.2, ARIA, design systems |
+| `sources/gov` | `gov` | Federal/LANL: NIST 800-53/171/218, DOE, Zero Trust, AI RMF, CUI |
+| `sources/robotics` | `robotics` | Physical AI, ROS 2, MuJoCo, Isaac Lab, LeRobot, VLA models, RL for robotics |
+| `sources/rust` | `rust` | Rust language, ownership/borrowing, async/Tokio, Cargo, error handling, Axum |
+| `sources/langsmith` | `langsmith` | LangSmith tracing, evaluation, datasets, experiments, prompt engineering |
+| `sources/langchain` | `langchain` | LangChain LCEL, chains, agents, retrievers, RAG patterns, core concepts |
+| `sources/langgraph` | `langgraph` | LangGraph state machines, agent graphs, multi-agent orchestration |
 
 Add private collections in `~/.config/grounded-code-mcp/config.toml`.
 
