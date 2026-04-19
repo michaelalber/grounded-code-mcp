@@ -145,6 +145,10 @@ def test_search_returns_relevant_chunks(vector_store, sample_chunks):
 
 ## Key Patterns
 
+### Rust Collection
+
+`sources/rust/` → `grounded_rust`. Use `collection="rust"` to search Rust language, ownership/borrowing, async, Tokio, Cargo, error handling, and ecosystem crates.
+
 ### MCP Tools (server.py)
 - `search_knowledge` - Search documentation with optional collection filter
 - `search_code_examples` - Find code examples by query and language
