@@ -85,7 +85,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Open Loops
 
-- [ ] No collection yet for tech-writing or observability standards
+_None currently open._
 
 ---
 
