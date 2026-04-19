@@ -149,6 +149,12 @@ def test_search_returns_relevant_chunks(vector_store, sample_chunks):
 
 `sources/rust/` → `grounded_rust`. Use `collection="rust"` to search Rust language, ownership/borrowing, async, Tokio, Cargo, error handling, and ecosystem crates.
 
+### LangChain / LangSmith / LangGraph Collections
+
+- `sources/langsmith/` → `grounded_langsmith`. Use `collection="langsmith"` for LangSmith tracing, evaluation, datasets, experiments, and prompt engineering.
+- `sources/langchain/` → `grounded_langchain`. Use `collection="langchain"` for LangChain LCEL, chains, agents, retrievers, RAG patterns, and core concepts.
+- `sources/langgraph/` → `grounded_langgraph`. Use `collection="langgraph"` for LangGraph state machines, agent graphs, and multi-agent orchestration.
+
 ### MCP Tools (server.py)
 - `search_knowledge` - Search documentation with optional collection filter
 - `search_code_examples` - Find code examples by query and language
