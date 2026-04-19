@@ -85,8 +85,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Open Loops
 
-- [ ] Untracked source directories in repo root (`async-book/`, `burn/`, `nomicon/`, `patterns/`, `rust-by-example/`) — pending decision on ingesting as Rust sub-collections
-- [ ] `w3c-trace-context.html` untracked — pending ingestion target decision
+- [ ] No collection yet for tech-writing or observability standards
 
 ---
 
