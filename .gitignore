@@ -17,6 +17,7 @@ MANIFEST
 
 # Virtual environments
 .venv/
+.venv-download/
 venv/
 env/
 
@@ -59,6 +60,7 @@ Thumbs.db
 
 # One-off scripts
 download_docs.py
+download_tech_writing_docs.py
 
 # Project data
 .data/
