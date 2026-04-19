@@ -92,5 +92,4 @@ A good output for this project:
 
 ## Open Loops
 
-- [ ] Untracked Rust source directories (`async-book/`, `burn/`, `nomicon/`, `patterns/`, `rust-by-example/`) — decide whether to ingest as additional Rust sub-collections or a separate `grounded_rust_extended` collection
-- [ ] No collection yet for observability / distributed tracing standards
+- [ ] No collection yet for tech-writing or observability standards
