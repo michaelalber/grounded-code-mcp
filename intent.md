@@ -92,4 +92,4 @@ A good output for this project:
 
 ## Open Loops
 
-- [ ] No collection yet for tech-writing or observability standards
+_None currently open._
