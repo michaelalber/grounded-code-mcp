@@ -2,203 +2,165 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+> Global rules (TDD, security, quality gates, Python standards, AI behavior) are in
+> `~/.claude/CLAUDE.md` and apply here automatically.
+> This file contains only what is specific to this project.
+
+---
+
 ## Project Overview
 
-grounded-code-mcp is a local MCP (Model Context Protocol) server that provides RAG capabilities over a persistent knowledge base. The server enables AI coding assistants (Claude Code, OpenCode, etc.) to ground their responses in vetted, authoritative documentation.
+- **Name:** grounded-code-mcp
+- **Purpose:** Local MCP server providing RAG over a persistent knowledge base of vetted technical documentation; eliminates hallucination by grounding AI coding assistant responses in authoritative sources.
+- **Phase:** Maintain
+- **Jira project key:** N/A — tracked via GitHub issues
+- **Confluence space:** N/A
+- **Definition of success:** Any AI coding session using this server produces grounded, citation-backed responses with zero reliance on training-data guesses for covered domains.
 
-## Philosophy
+---
 
-This project addresses LLM limitations (hallucination, brittle compositionality, lack of grounding) by anchoring AI responses to curated technical documentation via RAG.
+## Technology Stack
 
-**Core principles:**
-- Ground responses in curated knowledge base content
-- Treat AI output as requiring human review
-- Use structured outputs with validation
-- Three pillars: **TDD**, **Security by Design**, **YAGNI**
+- **Language:** Python 3.10–3.12
+- **Framework:** FastMCP (<3) for MCP server; Click + Rich for CLI
+- **Vector store:** Qdrant (primary), ChromaDB (fallback)
+- **Document parsing:** Docling ≥2.70.0
+- **Embeddings:** Ollama — model: `snowflake-arctic-embed2` (1024-dim, 8192-token context)
+- **Configuration:** TOML + Pydantic v2
+- **Test framework:** pytest + pytest-asyncio + pytest-cov
+- **CI/CD:** GitHub Actions — `.github/workflows/ci.yml` (lint, type-check, test matrix 3.10–3.12, dep-audit) + `security.yml` (Semgrep, Bandit, CodeQL, Trivy)
+- **Package manager:** pip / hatchling build; runtime install via pipx
 
-## Tech Stack
+---
 
-| Component | Choice |
-|-----------|--------|
-| MCP Framework | FastMCP (<3) |
-| Document Parsing | Docling |
-| Vector Store | Qdrant (primary), ChromaDB (fallback) |
-| Embeddings | Ollama (model configured in `config.toml`) |
-| Configuration | TOML + Pydantic |
-| CLI | Click + Rich |
-| Testing | pytest |
-| Linting | ruff |
-| Type Checking | mypy |
+## Architecture
+
+- **Pattern:** Ingest pipeline → vector search → MCP tool layer. Transport is stdio (default) or HTTP (local only, binds `127.0.0.1`).
+- **Entry points:**
+  - `src/grounded_code_mcp/__main__.py` — Click CLI (`ingest`, `serve`, `status`, `search`)
+  - `src/grounded_code_mcp/server.py` — FastMCP server and all MCP tool handlers
+- **Key directories:**
+  - `src/grounded_code_mcp/` — production source (8 pipeline modules)
+  - `tests/` — pytest unit tests; integration tests marked `@pytest.mark.integration`
+  - `sources/` — knowledge base documents organised by collection subdirectory
+  - `.grounded-code-mcp/` — runtime data: Qdrant storage, `manifest.json`
+  - `scripts/` — utility scripts (doc downloaders)
+  - `.github/workflows/` — CI definitions
+- **Non-obvious constraints:**
+  - CLI is installed via **pipx**, not `.venv`. After any code change run `pipx install . --force`.
+  - Ollama must be running with `snowflake-arctic-embed2` pulled before ingest or search.
+  - Qdrant must be running (Docker Compose or system service) for vector operations.
+  - Ingest jobs must run **sequentially** — parallel ingest causes OOM. Never run two collections simultaneously.
+  - Collection names in queries use the bare suffix (e.g., `"rust"`); the server prepends `grounded_` automatically.
+  - Machine-specific config (Ollama host, Qdrant URL, port overrides) belongs in `~/.config/grounded-code-mcp/config.toml`, never in the committed `config.toml`.
+
+---
+
+## Key Files
+
+| File | Why It Matters |
+|---|---|
+| `src/grounded_code_mcp/server.py` | All MCP tool handlers — the public API surface |
+| `src/grounded_code_mcp/ingest.py` | Pipeline orchestrator: parse → chunk → embed → upsert |
+| `src/grounded_code_mcp/chunking.py` | Code-aware chunking strategy; directly shapes retrieval quality |
+| `src/grounded_code_mcp/config.py` | Settings loading with Pydantic; resolves committed + user override configs |
+| `config.toml` | Collection map, chunking params, embedding model — shared across the team |
+| `pyproject.toml` | Dependencies and ruff / mypy / bandit / pytest configuration |
+
+---
+
+## Persistent Decisions
+
+| Date | Decision | Rationale |
+|---|---|---|
+| 2025-02 | Qdrant primary, ChromaDB fallback | Qdrant offers better performance and filtering; ChromaDB retained for Docker-free environments |
+| 2025-02 | FastMCP (<3) pinned | Simplest path to MCP compliance; version pinned below 3 to avoid breaking API changes |
+| 2025-02 | Docling for document parsing | Handles PDF, EPUB, HTML, Markdown with layout awareness; preserves table structure |
+| 2025-02 | Ollama + snowflake-arctic-embed2 | Local-only embeddings with no cloud dependency; 1024-dim balances quality and speed |
+| 2025-02 | Collections prefixed `grounded_` | Namespace isolation in shared Qdrant instances |
+| 2025-02 | HTTP transport binds `127.0.0.1` only | Security by default — never expose to network without explicit override |
+| 2025-02 | Separate RED / GREEN / REFACTOR commits | Verifiable TDD evidence on feature branches; RED commits never pushed to `main` |
+
+---
+
+## Open Loops
+
+- [ ] Untracked source directories in repo root (`async-book/`, `burn/`, `nomicon/`, `patterns/`, `rust-by-example/`) — pending decision on ingesting as Rust sub-collections
+- [ ] `w3c-trace-context.html` untracked — pending ingestion target decision
+
+---
+
+## Team
+
+| Name | Role | Notes |
+|---|---|---|
+| Michael Alber | Owner / sole maintainer | Reviews all changes |
+
+---
+
+## Available Tools
+
+- `mcp__grounded-code-mcp__search_knowledge` — search vetted documentation by query and collection
+- `mcp__grounded-code-mcp__search_code_examples` — find code examples by query and language
+- `mcp__grounded-code-mcp__list_sources` — list ingested source documents
+- `mcp__grounded-code-mcp__get_source_info` — get metadata for a specific source document
+
+---
+
+## Project Boot Ritual
+
+At the start of every session:
+
+1. Read this file (`CLAUDE.md`), `intent.md`, and `constraints.md`.
+2. No Jira — confirm the task with the user before starting.
+3. State: current phase (Maintain), active task, top 3 constraints, open loops relevant to the task.
+4. Do NOT begin work until context is confirmed.
+
+---
 
 ## Runtime vs Development
 
-The CLI is installed via **pipx** and available on PATH. Use it directly for all runtime commands:
+The CLI is installed via **pipx** and available on PATH. Use it for all runtime commands:
+
 ```bash
 grounded-code-mcp ingest ...
 grounded-code-mcp serve --debug
 ```
 
-After code changes, reinstall: `pipx install . --force`
+After any code change, reinstall: `pipx install . --force`
 
-Dev tools (pytest, ruff, mypy) live in `.venv/`:
-```bash
-.venv/bin/pytest
-.venv/bin/ruff check src/ tests/
-.venv/bin/mypy src/
-```
-
-**Do not** use `.venv/bin/grounded-code-mcp` — always use the pipx-installed binary.
-
-## Build & Test Commands
+Dev tools live in `.venv/` — **do not** use `.venv/bin/grounded-code-mcp`:
 
 ```bash
-# Create dev venv and install dev dependencies
 python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
 
-# Run tests
 .venv/bin/pytest
-
-# Run with coverage
 .venv/bin/pytest --cov=grounded_code_mcp
-
-# Lint
 .venv/bin/ruff check src/ tests/
-
-# Type check
 .venv/bin/mypy src/
-
-# Security scan
 .venv/bin/bandit -r src/ -c pyproject.toml
 ```
 
-## CLI Commands (via pipx)
+---
 
-```bash
-grounded-code-mcp ingest [--force] [--collection NAME] [PATH]
-grounded-code-mcp status
-grounded-code-mcp serve [--debug]
-grounded-code-mcp search "query" [--collection NAME] [-n NUM] [--min-score FLOAT]
-```
+## Git Workflow — Atomic TDD Commits
 
-## Architecture
+Stricter than the global standard to produce verifiable RED→GREEN evidence:
 
-```
-src/grounded_code_mcp/
-├── __main__.py      # CLI entry point (Click commands)
-├── config.py        # Settings loading (TOML + Pydantic)
-├── manifest.py      # File tracking with SHA-256 hashing
-├── parser.py        # Docling document parsing
-├── chunking.py      # Code-aware semantic chunking
-├── embeddings.py    # Ollama client wrapper
-├── vectorstore.py   # Qdrant/ChromaDB abstraction
-├── ingest.py        # Ingestion pipeline orchestrator
-└── server.py        # FastMCP server with MCP tools
-```
-
-## Development Principles
-
-### TDD is Mandatory
-1. **Never write production code without a failing test first**
-2. Cycle: RED (write failing test) → GREEN (minimal code to pass) → REFACTOR
-3. Run tests before committing: `pytest`
-4. Coverage target: 80% minimum for business logic, 95% for security-critical code
-
-### Code Standards
-- Type hints on all signatures
-- Google-style docstrings for public methods
-- Arrange-Act-Assert test pattern
-- `pathlib.Path` over string paths
-- Specific exceptions, never bare `except:`
-- Async for I/O-bound operations
-
-### Quality Gates
-- **Cyclomatic Complexity**: Methods <10, classes <20
-- **Code Coverage**: 80% minimum for business logic, 95% for security-critical code
-- **Maintainability Index**: Target 70+
-- **Code Duplication**: Maximum 3%
-
-### Git Workflow — Atomic TDD Commits
-- **Separate test and implementation commits** to create verifiable RED→GREEN evidence
-- RED phase: Write failing test, commit with `test: add failing test for <behavior>`
-- GREEN phase: Write minimal code to pass, commit with `feat|fix: <description>`
-- REFACTOR phase: Improve structure (tests stay green), commit with `refactor: <description>`
+- **RED:** Write failing test → commit `test: add failing test for <behavior>`
+- **GREEN:** Minimal code to pass → commit `feat|fix: <description>`
+- **REFACTOR:** Improve structure, tests stay green → commit `refactor: <description>`
 - Never combine new tests and new production code in a single commit
-- Don't commit failing tests to shared branches (RED commits are for local/feature branches)
-- Commit message format: `test|feat|fix|refactor|style|ci|docs: brief description`
-- Run `pytest` before every commit
+- Never push failing tests to `main` — RED commits are local / feature-branch only
+- Run `.venv/bin/pytest` before every commit
 
-### Testing Patterns
+---
 
-```python
-# Arrange-Act-Assert pattern
-def test_search_returns_relevant_chunks(vector_store, sample_chunks):
-    # Arrange
-    vector_store.add(sample_chunks)
+## Project-Specific Security
 
-    # Act
-    results = vector_store.search("embedding models", top_k=3)
+Beyond global rules:
 
-    # Assert
-    assert len(results) == 3
-    assert results[0].score > 0.7
-```
-
-## Key Patterns
-
-### Rust Collection
-
-`sources/rust/` → `grounded_rust`. Use `collection="rust"` to search Rust language, ownership/borrowing, async, Tokio, Cargo, error handling, and ecosystem crates.
-
-### LangChain / LangSmith / LangGraph Collections
-
-- `sources/langsmith/` → `grounded_langsmith`. Use `collection="langsmith"` for LangSmith tracing, evaluation, datasets, experiments, and prompt engineering.
-- `sources/langchain/` → `grounded_langchain`. Use `collection="langchain"` for LangChain LCEL, chains, agents, retrievers, RAG patterns, and core concepts.
-- `sources/langgraph/` → `grounded_langgraph`. Use `collection="langgraph"` for LangGraph state machines, agent graphs, and multi-agent orchestration.
-
-### MCP Tools (server.py)
-- `search_knowledge` - Search documentation with optional collection filter
-- `search_code_examples` - Find code examples by query and language
-- `list_collections` - List available collections
-- `list_sources` - List ingested source documents
-- `get_source_info` - Get details about a specific source
-
-### Chunking Strategy (chunking.py)
-- Text chunks: 1000-1500 chars with 200 char overlap
-- Code blocks: Atomic up to 3000 chars; split on function boundaries if larger
-- Tables: Atomic, never split
-- Heading hierarchy preserved as context metadata
-
-### Change Detection (manifest.py)
-- SHA-256 hashing for file change detection
-- Incremental ingestion (only re-process changed files)
-- Chunk IDs tracked for targeted deletion on re-ingestion
-
-### Security-By-Design
-- Validate all inputs at system boundaries
-- Validate file extensions against allowlist (`.pdf`, `.epub`, `.md`, `.txt`, `.rst`, `.html`)
+- Validate file extensions against allowlist: `.pdf`, `.epub`, `.md`, `.txt`, `.rst`, `.html`
 - Verify MIME type via magic bytes or UTF-8 validation
-- Enforce file size limits (100MB configurable) and sanitize filenames
-- Bind HTTP transport to `127.0.0.1` by default
-- Never include secrets in source code — use environment variables
-- All rules align with [OWASP Top 10 (2025)](https://owasp.org/Top10/2025/) guidance
-
-### YAGNI (You Aren't Gonna Need It)
-- Start with direct implementations
-- Add abstractions only when complexity demands it
-- Create interfaces only when multiple implementations exist
-- No dependency injection containers
-- No repository pattern — direct JSON read/write
-- No plugin architecture — simple match/case on file extension
-
-## Configuration
-
-Default config in `config.toml`. See that file for all available settings including embedding model, vector store provider, and chunking parameters.
-
-## Prerequisites
-
-Ollama must be running with the configured embedding model:
-
-```bash
-ollama pull <model-from-config.toml>
-ollama serve  # or: systemctl --user start ollama
-```
+- Enforce file size limits (100 MB default, configurable) and sanitize filenames
+- HTTP transport binds to `127.0.0.1` by default — never expose to an external network
