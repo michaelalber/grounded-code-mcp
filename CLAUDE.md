@@ -75,6 +75,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 |---|---|---|
 | 2025-02 | Qdrant primary, ChromaDB fallback | Qdrant offers better performance and filtering; ChromaDB retained for Docker-free environments |
 | 2025-02 | FastMCP (<3) pinned | Simplest path to MCP compliance; version pinned below 3 to avoid breaking API changes |
+| 2026-04 | FastMCP upgraded to >=3.2.0 | CVE-2026-32871 (critical SSRF), CVE-2026-27124 (high OAuth), CVE-2025-64340 (medium command injection) — v3 API was compatible with existing usage; 276 tests pass |
 | 2025-02 | Docling for document parsing | Handles PDF, EPUB, HTML, Markdown with layout awareness; preserves table structure |
 | 2025-02 | Ollama + snowflake-arctic-embed2 | Local-only embeddings with no cloud dependency; 1024-dim balances quality and speed |
 | 2025-02 | Collections prefixed `grounded_` | Namespace isolation in shared Qdrant instances |
