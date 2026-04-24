@@ -22,8 +22,17 @@ class TestIsSupportedFormat:
     @pytest.mark.parametrize(
         "suffix",
         [
-            ".pdf", ".docx", ".doc", ".pptx", ".html", ".md", ".markdown", ".epub",
-            ".rst", ".txt", ".mdx",
+            ".pdf",
+            ".docx",
+            ".doc",
+            ".pptx",
+            ".html",
+            ".md",
+            ".markdown",
+            ".epub",
+            ".rst",
+            ".txt",
+            ".mdx",
         ],
     )
     def test_supported_formats(self, suffix: str) -> None:
@@ -223,7 +232,9 @@ class TestDocumentParser:
 
         parser = DocumentParser()
         # Patching _get_converter to raise proves Docling is never called
-        with patch.object(parser, "_get_converter", side_effect=RuntimeError("Docling should not be called")):
+        with patch.object(
+            parser, "_get_converter", side_effect=RuntimeError("Docling should not be called")
+        ):
             result = parser.parse(adoc_file)
 
         assert "Some content here." in result.content
@@ -235,7 +246,9 @@ class TestDocumentParser:
         adoc_file.write_text("= Chapter Title\n\nBody text.")
 
         parser = DocumentParser()
-        with patch.object(parser, "_get_converter", side_effect=RuntimeError("Docling should not be called")):
+        with patch.object(
+            parser, "_get_converter", side_effect=RuntimeError("Docling should not be called")
+        ):
             result = parser.parse(adoc_file)
 
         assert "Body text." in result.content
@@ -247,7 +260,9 @@ class TestDocumentParser:
         rst_file.write_text("My Title\n========\n\nSome rst content.")
 
         parser = DocumentParser()
-        with patch.object(parser, "_get_converter", side_effect=RuntimeError("Docling should not be called")):
+        with patch.object(
+            parser, "_get_converter", side_effect=RuntimeError("Docling should not be called")
+        ):
             result = parser.parse(rst_file)
 
         assert "Some rst content." in result.content
@@ -271,7 +286,9 @@ class TestDocumentParser:
         txt_file.write_text("Plain text content.\nSecond line.")
 
         parser = DocumentParser()
-        with patch.object(parser, "_get_converter", side_effect=RuntimeError("Docling should not be called")):
+        with patch.object(
+            parser, "_get_converter", side_effect=RuntimeError("Docling should not be called")
+        ):
             result = parser.parse(txt_file)
 
         assert "Plain text content." in result.content
@@ -284,7 +301,9 @@ class TestDocumentParser:
         mdx_file.write_text("# MDX Title\n\nContent with <Component /> tags.")
 
         parser = DocumentParser()
-        with patch.object(parser, "_get_converter", side_effect=RuntimeError("Docling should not be called")):
+        with patch.object(
+            parser, "_get_converter", side_effect=RuntimeError("Docling should not be called")
+        ):
             result = parser.parse(mdx_file)
 
         assert "Content with <Component />" in result.content
@@ -319,7 +338,9 @@ class TestDocumentParserPdfBatching:
 
         parser = DocumentParser(pdf_page_batch_size=0)
         with (
-            patch.object(parser, "_parse_pdf_in_batches", side_effect=AssertionError("must not be called")),
+            patch.object(
+                parser, "_parse_pdf_in_batches", side_effect=AssertionError("must not be called")
+            ),
             patch.object(parser, "_get_converter", return_value=mock_converter),
         ):
             result = parser.parse(pdf_file)

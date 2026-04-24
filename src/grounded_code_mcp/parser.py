@@ -200,7 +200,12 @@ class DocumentParser:
                 stripped = line.strip()
                 if stripped and i + 1 < len(lines):
                     underline = lines[i + 1].strip()
-                    if underline and len(underline) >= len(stripped) and underline == underline[0] * len(underline) and underline[0] in "=-~^#+*":
+                    if (
+                        underline
+                        and len(underline) >= len(stripped)
+                        and underline == underline[0] * len(underline)
+                        and underline[0] in "=-~^#+*"
+                    ):
                         title = stripped
                         break
         # txt: no title extraction
@@ -274,7 +279,9 @@ class DocumentParser:
         try:
             from pypdf import PdfReader
         except ImportError as exc:
-            raise ImportError("pypdf is required for batched PDF parsing: pip install pypdf") from exc
+            raise ImportError(
+                "pypdf is required for batched PDF parsing: pip install pypdf"
+            ) from exc
 
         return len(PdfReader(str(path)).pages)
 
