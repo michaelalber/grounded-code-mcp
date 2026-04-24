@@ -200,6 +200,8 @@ Collections are mapped from source directories in `config.toml`. The server prep
 | `sources/langsmith` | `langsmith` | LangSmith tracing, evaluation, datasets, experiments, prompt engineering |
 | `sources/langchain` | `langchain` | LangChain LCEL, chains, agents, retrievers, RAG patterns, core concepts |
 | `sources/langgraph` | `langgraph` | LangGraph state machines, agent graphs, multi-agent orchestration |
+| `sources/ssis` | `ssis` | SQL Server Integration Services: packages, control flow, data flow, SSIS Catalog, expressions, deployment |
+| `sources/api-design` | `api_design` | REST API design: Zalando guidelines, Google AIP, Microsoft REST API guidelines |
 
 Add private collections in `~/.config/grounded-code-mcp/config.toml`.
 

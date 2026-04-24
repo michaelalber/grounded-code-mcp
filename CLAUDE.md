@@ -155,6 +155,16 @@ Stricter than the global standard to produce verifiable RED→GREEN evidence:
 
 ---
 
+## Project-Specific Code Conventions
+
+Things easy to get wrong that tooling alone won't catch before you commit:
+
+- `asyncio_mode = "auto"` is configured — do **not** add `@pytest.mark.asyncio` to test functions
+- Use `raise RuntimeError(...)` instead of bare `assert` for runtime checks — bandit S101 will flag bare asserts
+- Google-style docstrings for all public functions and classes
+
+---
+
 ## Project-Specific Security
 
 Beyond global rules:
