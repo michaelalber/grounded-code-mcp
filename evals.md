@@ -73,7 +73,7 @@ Evals answer: *"Is the output actually good?"* — not *"does it look reasonable
 ## CI Gate
 
 - **Install:** `pip install -e ".[dev]"` — zero errors
-- **Tests:** `.venv/bin/pytest --cov=src/grounded_code_mcp --cov-report=term-missing` — all pass
+- **Tests:** `.venv/bin/pytest --cov=src/grounded_code_mcp --cov-report=term-missing` — all 276 pass
 - **Coverage:** ≥ 80% business logic, ≥ 95% security-critical (file validation paths)
 - **Lint:** `.venv/bin/ruff check src/ tests/` — clean
 - **Type check:** `.venv/bin/mypy src/` — clean
