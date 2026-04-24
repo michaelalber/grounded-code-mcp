@@ -304,9 +304,7 @@ class TestInputValidation:
                 data_dir=data_dir,
             ),
             ollama=OllamaSettings(model="test-model", embedding_dim=128),
-            vectorstore=VectorStoreSettings(
-                provider="qdrant", collection_prefix="grounded_"
-            ),
+            vectorstore=VectorStoreSettings(provider="qdrant", collection_prefix="grounded_"),
             collections={"sources/python": "python", "sources/internal": "internal"},
         )
 
@@ -491,9 +489,7 @@ class TestInputValidation:
 
     # M4: initialize idempotency (lock-protected re-init)
 
-    def test_initialize_is_idempotent_when_already_initialized(
-        self, temp_dir: Path
-    ) -> None:
+    def test_initialize_is_idempotent_when_already_initialized(self, temp_dir: Path) -> None:
         """Calling initialize() a second time must not overwrite existing state."""
         import grounded_code_mcp.server as server_module
 
@@ -560,9 +556,7 @@ class TestLowSeverityFindings:
 
     # L1: Ollama host must not appear in tool error output
 
-    def test_search_knowledge_ollama_error_does_not_expose_host(
-        self, settings: Settings
-    ) -> None:
+    def test_search_knowledge_ollama_error_does_not_expose_host(self, settings: Settings) -> None:
         """OllamaConnectionError must not leak the host URL into the tool response."""
         from grounded_code_mcp.embeddings import OllamaConnectionError
 

@@ -389,4 +389,6 @@ def ingest_documents(
         IngestStats with results.
     """
     pipeline = IngestionPipeline(settings)
-    return pipeline.ingest(path, collection=collection, force=force, progress_callback=progress_callback)
+    return pipeline.ingest(
+        path, collection=collection, force=force, progress_callback=progress_callback
+    )
