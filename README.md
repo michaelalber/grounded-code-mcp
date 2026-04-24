@@ -230,7 +230,7 @@ All at once:
 
 | Component | Choice |
 |-----------|--------|
-| MCP Framework | FastMCP `<3` (v3 introduced breaking API changes) |
+| MCP Framework | FastMCP `>=3.2.0` |
 | Document Parsing | Docling |
 | Vector Store | Qdrant (primary), ChromaDB (fallback) |
 | Embeddings | Ollama + snowflake-arctic-embed2 |
