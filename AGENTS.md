@@ -83,7 +83,8 @@
 
 ## Open Loops
 
-_None currently open._
+- [ ] Untracked source directories in repo root (`async-book/`, `burn/`, `nomicon/`, `patterns/`, `rust-by-example/`) — pending decision on ingesting as Rust sub-collections
+- [ ] `w3c-trace-context.html` untracked — pending ingestion target decision
 
 ---
 
@@ -100,34 +101,6 @@ _None currently open._
 - **grounded-code-mcp MCP** — `search_knowledge`, `search_code_examples`, `list_sources`, `get_source_info` — use the running instance for knowledge lookups during development on this project
 - **Bash** — run tests, linters, ingest commands, pipx reinstall
 - **Read / Write / Edit / Grep / Glob** — file operations and code search
-
-### Collections
-
-Pass only the bare suffix — the server prepends `grounded_` automatically.
-
-| `collection=` | What lives here |
-|---|---|
-| `"internal"` | Engineering standards: XP, TDD, CI/CD, DDD, Clean Architecture, OWASP, NIST AI |
-| `"patterns"` | Design patterns: GoF, CQRS, DDD, Clean Architecture, DI, MADR; code smells + refactoring techniques |
-| `"architecture"` | Software architecture: DDIA, SRE, 12-Factor, AOSA, C4, arc42, distributed systems |
-| `"systems_thinking"` | Systems thinking: Meadows leverage points, feedback loops, chaos engineering |
-| `"dotnet"` | .NET/C#, EF Core, ASP.NET Core, DI, migration guides |
-| `"python"` | Python 3.13, FastAPI, FastMCP, Pydantic v2, pytest, Flask, cosmicpython |
-| `"databases"` | SQL, PostgreSQL indexing, relational theory |
-| `"edge_ai"` | AI/ML engineering, RAG, embeddings, NLP, AI agents |
-| `"automation"` | Raspberry Pi, PLC, MODBUS, OPC UA, NIST 800-82, robotics |
-| `"4d_legacy"` | 4D v18/v20 — source reference for 4D → .NET migration |
-| `"php"` | PHP manual, Laravel 5.5 / 6.x / 12.x |
-| `"javascript"` | JS/TS: Definitive Guide, TypeScript Handbook, Vue 2/3, ECMAScript 2024 |
-| `"ui_ux"` | UI/UX: Laws of UX, Nielsen heuristics, WCAG 2.2, ARIA, GOV.UK, USWDS |
-| `"gov"` | Federal/LANL: NIST 800-53/171/218, DOE, Zero Trust, AI RMF, CUI |
-| `"robotics"` | ROS 2, MuJoCo, Isaac Lab, LeRobot, Spinning Up in Deep RL, VLA models |
-| `"rust"` | Rust: ownership/borrowing/lifetimes, async/Tokio, Cargo, error handling, Axum |
-| `"langsmith"` | LangSmith: tracing, evaluation, datasets, experiments, prompt engineering |
-| `"langchain"` | LangChain: LCEL, chains, agents, retrievers, RAG patterns |
-| `"langgraph"` | LangGraph: state machines, agent graphs, multi-agent orchestration |
-| `"ssis"` | SSIS: packages, control flow, data flow, SSIS Catalog, expressions, deployment |
-| `"api_design"` | REST API design: Zalando, Google AIP, Microsoft REST/Graph guidelines |
 
 ---
 
@@ -177,16 +150,6 @@ Stricter than the global standard to produce verifiable RED→GREEN evidence:
 - Never combine new tests and new production code in a single commit
 - Never push failing tests to `main` — RED commits are local / feature-branch only
 - Run `.venv/bin/pytest` before every commit
-
----
-
-## Project-Specific Code Conventions
-
-Things easy to get wrong that tooling alone won't catch before you commit:
-
-- `asyncio_mode = "auto"` is configured — do **not** add `@pytest.mark.asyncio` to test functions
-- Use `raise RuntimeError(...)` instead of bare `assert` for runtime checks — bandit S101 will flag bare asserts
-- Google-style docstrings for all public functions and classes
 
 ---
 
