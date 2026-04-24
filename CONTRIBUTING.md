@@ -108,5 +108,5 @@ Use the `pipx`-installed binary for runtime commands (`grounded-code-mcp ingest`
 
 ## Dependency notes
 
-- `fastmcp < 3` — v3 introduced breaking API changes; the server is pinned below it until migration is complete
+- `fastmcp >= 3.2.0` — v3.2.0 patched critical SSRF and command injection CVEs (CVE-2026-32871, CVE-2026-27124, CVE-2025-64340)
 - `snowflake-arctic-embed2` — default embedding model; changing it requires a full re-ingest of all collections
