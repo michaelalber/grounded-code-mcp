@@ -85,7 +85,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Open Loops
 
-_None currently open._
+- [ ] Untracked source directories in repo root (`async-book/`, `burn/`, `nomicon/`, `patterns/`, `rust-by-example/`) — pending decision on ingesting as Rust sub-collections
+- [ ] `w3c-trace-context.html` untracked — pending ingestion target decision
 
 ---
 
@@ -152,16 +153,6 @@ Stricter than the global standard to produce verifiable RED→GREEN evidence:
 - Never combine new tests and new production code in a single commit
 - Never push failing tests to `main` — RED commits are local / feature-branch only
 - Run `.venv/bin/pytest` before every commit
-
----
-
-## Project-Specific Code Conventions
-
-Things easy to get wrong that tooling alone won't catch before you commit:
-
-- `asyncio_mode = "auto"` is configured — do **not** add `@pytest.mark.asyncio` to test functions
-- Use `raise RuntimeError(...)` instead of bare `assert` for runtime checks — bandit S101 will flag bare asserts
-- Google-style docstrings for all public functions and classes
 
 ---
 
