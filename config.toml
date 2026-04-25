@@ -22,6 +22,28 @@ max_file_size_mb = 500
 # Split large PDFs into batches of this many pages before passing to Docling.
 # Keeps peak memory bounded for large files. 0 disables batching.
 pdf_page_batch_size = 50
+# Exact filenames (case-sensitive) to skip during directory scan.
+exclude_filenames = [
+  "CONTRIBUTING.md",
+  "CONTRIBUTING.rst",
+  "SECURITY.md",
+  "CODE_OF_CONDUCT.md",
+  "BUILD.md",
+  "CODEOWNERS",
+]
+# Glob patterns matched against filenames to skip during directory scan.
+exclude_patterns = [
+  "CHANGELOG*",
+  "changelog*",
+  "LICENSE*",
+  "license*",
+  "release-notes*",
+  "release_notes*",
+  "releases.md",
+  "news_*.md",
+  "news.md",
+  "canary-releases*",
+]
 
 [ollama]
 # Embedding model — must match embedding_dim below.
