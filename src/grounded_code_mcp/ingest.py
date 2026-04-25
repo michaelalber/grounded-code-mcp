@@ -122,7 +122,12 @@ class IngestionPipeline:
         if source_path.is_file():
             files = [source_path]
         else:
-            files = scan_directory(source_path, recursive=True)
+            files = scan_directory(
+                source_path,
+                recursive=True,
+                exclude_filenames=self.settings.knowledge_base.exclude_filenames,
+                exclude_patterns=self.settings.knowledge_base.exclude_patterns,
+            )
 
         stats.files_scanned = len(files)
         logger.info("Found %d files to process", len(files))
