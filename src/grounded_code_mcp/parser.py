@@ -391,16 +391,23 @@ def scan_directory(
     directory: Path,
     *,
     recursive: bool = True,
+    exclude_filenames: frozenset[str] = frozenset(),
+    exclude_patterns: list[str] | None = None,
 ) -> list[Path]:
     """Scan a directory for supported documents.
 
     Args:
         directory: Directory to scan.
         recursive: Whether to scan subdirectories.
+        exclude_filenames: Exact filenames to skip (e.g. ``{"CONTRIBUTING.md"}``).
+        exclude_patterns: Glob patterns matched against filenames to skip
+            (e.g. ``["CHANGELOG*", "LICENSE*"]``).
 
     Returns:
         List of paths to supported documents.
     """
+    from fnmatch import fnmatch
+
     if not directory.exists():
         return []
 
@@ -408,7 +415,14 @@ def scan_directory(
     paths = []
 
     for path in directory.glob(pattern):
-        if path.is_file() and is_supported_format(path):
-            paths.append(path)
+        if not path.is_file():
+            continue
+        if not is_supported_format(path):
+            continue
+        if path.name in exclude_filenames:
+            continue
+        if exclude_patterns and any(fnmatch(path.name, p) for p in exclude_patterns):
+            continue
+        paths.append(path)
 
     return sorted(paths)

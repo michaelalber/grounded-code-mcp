@@ -24,6 +24,14 @@ class KnowledgeBaseSettings(BaseModel):
         default=200,
         description="Maximum file size in MB. Files larger than this are skipped. 0 disables.",
     )
+    exclude_filenames: frozenset[str] = Field(
+        default_factory=frozenset,
+        description="Exact filenames (case-sensitive) to skip during directory scan.",
+    )
+    exclude_patterns: list[str] = Field(
+        default_factory=list,
+        description="Glob patterns matched against filenames to skip during directory scan.",
+    )
     pdf_page_batch_size: int = Field(
         default=0,
         description=(
