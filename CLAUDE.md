@@ -81,6 +81,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | 2025-02 | Collections prefixed `grounded_` | Namespace isolation in shared Qdrant instances |
 | 2025-02 | HTTP transport binds `127.0.0.1` only | Security by default — never expose to network without explicit override |
 | 2025-02 | Separate RED / GREEN / REFACTOR commits | Verifiable TDD evidence on feature branches; RED commits never pushed to `main` |
+| 2026-04 | Removed Microsoft Learn PDF exports and Writing Style Guide from `dotnet` and `internal` collections | Live equivalents covered by the Microsoft Learn MCP; keeping static snapshots is redundant and creates drift |
 
 ---
 
