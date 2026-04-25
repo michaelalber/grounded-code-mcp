@@ -546,3 +546,65 @@ class TestScanDirectory:
         """Test scanning a non-existent directory."""
         result = scan_directory(temp_dir / "nonexistent")
         assert result == []
+
+    def test_scan_excludes_exact_filenames(self, temp_dir: Path) -> None:
+        """Exact-filename exclusions remove matching files regardless of location."""
+        (temp_dir / "CONTRIBUTING.md").write_text("# Contributing")
+        (temp_dir / "guide.md").write_text("# Guide")
+        sub = temp_dir / "sub"
+        sub.mkdir()
+        (sub / "CONTRIBUTING.md").write_text("# Sub Contributing")
+        (sub / "api.md").write_text("# API")
+
+        result = scan_directory(temp_dir, exclude_filenames=frozenset({"CONTRIBUTING.md"}))
+        names = [p.name for p in result]
+
+        assert "CONTRIBUTING.md" not in names
+        assert "guide.md" in names
+        assert "api.md" in names
+
+    def test_scan_excludes_glob_patterns(self, temp_dir: Path) -> None:
+        """Glob patterns exclude matching filenames regardless of case variant."""
+        (temp_dir / "CHANGELOG.md").write_text("v1.0")
+        (temp_dir / "changelog-py.mdx").write_text("changes")
+        (temp_dir / "releases.md").write_text("releases")
+        (temp_dir / "api.md").write_text("# API")
+
+        result = scan_directory(
+            temp_dir,
+            exclude_patterns=["CHANGELOG*", "changelog*", "releases.md"],
+        )
+        names = {p.name for p in result}
+
+        assert "CHANGELOG.md" not in names
+        assert "changelog-py.mdx" not in names
+        assert "releases.md" not in names
+        assert "api.md" in names
+
+    def test_scan_exclude_filenames_and_patterns_combine(self, temp_dir: Path) -> None:
+        """Both exclusion mechanisms apply together."""
+        (temp_dir / "CONTRIBUTING.md").write_text("meta")
+        (temp_dir / "CHANGELOG.md").write_text("history")
+        (temp_dir / "README.md").write_text("# Docs")
+
+        result = scan_directory(
+            temp_dir,
+            exclude_filenames=frozenset({"CONTRIBUTING.md"}),
+            exclude_patterns=["CHANGELOG*"],
+        )
+        names = {p.name for p in result}
+
+        assert "CONTRIBUTING.md" not in names
+        assert "CHANGELOG.md" not in names
+        assert "README.md" in names
+
+    def test_scan_no_exclusions_is_unchanged(self, temp_dir: Path) -> None:
+        """Passing no exclusion args preserves existing behaviour."""
+        (temp_dir / "CONTRIBUTING.md").write_text("meta")
+        (temp_dir / "guide.md").write_text("# Guide")
+
+        result = scan_directory(temp_dir)
+        names = {p.name for p in result}
+
+        assert "CONTRIBUTING.md" in names
+        assert "guide.md" in names
