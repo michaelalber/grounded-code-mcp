@@ -32,8 +32,8 @@ The following are high-quality, freely available resources suitable for ingestio
 | Pydantic docs | [github.com/pydantic/pydantic](https://github.com/pydantic/pydantic) `docs/` | Markdown; branch `main` |
 | FastMCP docs | [github.com/jlowin/fastmcp](https://github.com/jlowin/fastmcp) `docs/` | Markdown |
 | Architecture Patterns with Python | [github.com/cosmicpython/book](https://github.com/cosmicpython/book) | Free online book; Markdown |
-| Fluent Python | O'Reilly (purchase or library) | PDF suitable for ingestion |
-| Python Cookbook | O'Reilly (purchase or library) | PDF suitable for ingestion |
+
+PDFs of Python books can be placed directly in `sources/python/` and will be ingested automatically.
 
 ## Coverage areas
 

@@ -45,9 +45,7 @@ Requires: `pip install requests beautifulsoup4 html2text`
 grounded-code-mcp ingest sources/ssis --collection ssis
 ```
 
-## Books (Purchase Separately)
+## Additional sources
 
-Place purchased PDFs anywhere under `sources/ssis/books/`:
-
-- *SSIS Design Patterns* — Andy Leonard et al., Apress 2014
-- *Knight's Microsoft Business Intelligence 24-Hour Trainer* — Chapters covering SSIS
+PDFs of SSIS books or supplementary references can be placed under `sources/ssis/books/`
+and will be ingested automatically.
