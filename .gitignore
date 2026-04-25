@@ -59,8 +59,7 @@ Thumbs.db
 *.log
 
 # One-off scripts
-download_docs.py
-download_tech_writing_docs.py
+download*.py
 
 # Project data
 .data/
