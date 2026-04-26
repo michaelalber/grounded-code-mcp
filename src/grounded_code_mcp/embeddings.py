@@ -98,11 +98,12 @@ class EmbeddingClient:
         """Maximum character length before truncation."""
         return int(self.context_length * _CHARS_PER_TOKEN_ESTIMATE)
 
-    def _truncate_text(self, text: str) -> str:
+    def _truncate_text(self, text: str, chunk_index: int | None = None) -> str:
         """Truncate text that would exceed the model's context length.
 
         Args:
             text: Input text.
+            chunk_index: Zero-based position of the chunk in the batch (for log tracing).
 
         Returns:
             Text truncated to max_chars if it exceeds the limit.
@@ -110,10 +111,11 @@ class EmbeddingClient:
         if len(text) <= self.max_chars:
             return text
         logger.warning(
-            "Truncating text from %d to %d chars (context_length=%d tokens)",
+            "Truncating text from %d to %d chars (context_length=%d tokens, chunk_index=%s)",
             len(text),
             self.max_chars,
             self.context_length,
+            chunk_index,
         )
         return text[: self.max_chars]
 
@@ -249,7 +251,7 @@ class EmbeddingClient:
         total = len(texts)
 
         for i in range(0, total, batch_size):
-            truncated = [self._truncate_text(t) for t in texts[i : i + batch_size]]
+            truncated = [self._truncate_text(t, i + j) for j, t in enumerate(texts[i : i + batch_size])]
             input_batch = [f"query: {t}" for t in truncated] if is_query else truncated
 
             if show_progress:
