@@ -8,6 +8,7 @@ from click.testing import CliRunner
 
 from grounded_code_mcp.__main__ import cli
 from grounded_code_mcp.ingest import IngestStats
+from grounded_code_mcp.parser import ParsedDocument
 
 
 def test_cli_version() -> None:
@@ -586,3 +587,268 @@ class TestSearchCommand:
 
         assert result.exit_code == 0
         assert "Error searching" in result.output
+
+
+class TestConvertCommand:
+    """Tests for the convert CLI command."""
+
+    def test_convert_command_exists(self) -> None:
+        """convert command is registered and has help text."""
+        runner = CliRunner()
+        result = runner.invoke(cli, ["convert", "--help"])
+        assert result.exit_code == 0
+        assert "convert" in result.output.lower()
+
+    def test_convert_dry_run_prints_files_without_writing(self, temp_dir: Path) -> None:
+        """--dry-run lists files that would be converted without writing sidecars."""
+        from grounded_code_mcp.config import DoclingSettings
+
+        pdf_file = temp_dir / "book.pdf"
+        pdf_file.write_bytes(b"%PDF-1.4")
+
+        mock_settings = MagicMock()
+        mock_settings.knowledge_base.sources_dir = temp_dir
+        mock_settings.collections = {}
+        mock_settings.docling = DoclingSettings()
+
+        runner = CliRunner()
+        with (
+            patch("grounded_code_mcp.__main__.Settings") as mock_cls,
+            patch("grounded_code_mcp.parser.DocumentParser"),
+        ):
+            mock_cls.load.return_value = mock_settings
+            result = runner.invoke(cli, ["convert", str(temp_dir), "--dry-run"])
+
+        assert result.exit_code == 0
+        assert "Would convert" in result.output
+        assert not (temp_dir / "book.pdf.md").exists()
+
+    def test_convert_skips_existing_sidecar(self, temp_dir: Path) -> None:
+        """Files with an existing sidecar are counted as skipped without --force."""
+        from grounded_code_mcp.config import DoclingSettings
+
+        pdf_file = temp_dir / "doc.pdf"
+        pdf_file.write_bytes(b"%PDF-1.4")
+        sidecar = temp_dir / "doc.pdf.md"
+        sidecar.write_text("# Existing")
+
+        mock_settings = MagicMock()
+        mock_settings.knowledge_base.sources_dir = temp_dir
+        mock_settings.collections = {}
+        mock_settings.docling = DoclingSettings()
+
+        runner = CliRunner()
+        with (
+            patch("grounded_code_mcp.__main__.Settings") as mock_cls,
+            patch("grounded_code_mcp.parser.DocumentParser"),
+        ):
+            mock_cls.load.return_value = mock_settings
+            result = runner.invoke(cli, ["convert", str(temp_dir)])
+
+        assert result.exit_code == 0
+        assert "1 skipped" in result.output
+        assert sidecar.read_text() == "# Existing"
+
+    def test_convert_force_overwrites_sidecar(self, temp_dir: Path) -> None:
+        """--force re-converts and overwrites an existing sidecar."""
+        from grounded_code_mcp.config import DoclingSettings
+
+        pdf_file = temp_dir / "doc.pdf"
+        pdf_file.write_bytes(b"%PDF-1.4")
+        sidecar = temp_dir / "doc.pdf.md"
+        sidecar.write_text("# Old")
+
+        mock_settings = MagicMock()
+        mock_settings.knowledge_base.sources_dir = temp_dir
+        mock_settings.collections = {}
+        mock_settings.docling = DoclingSettings()
+
+        mock_parser_instance = MagicMock()
+        mock_parser_instance.parse.return_value = ParsedDocument(
+            path=pdf_file, content="# New content", file_type="pdf"
+        )
+
+        runner = CliRunner()
+        with (
+            patch("grounded_code_mcp.__main__.Settings") as mock_cls,
+            patch("grounded_code_mcp.parser.DocumentParser") as mock_parser_cls,
+        ):
+            mock_cls.load.return_value = mock_settings
+            mock_parser_cls.return_value = mock_parser_instance
+            result = runner.invoke(cli, ["convert", str(temp_dir), "--force"])
+
+        assert result.exit_code == 0
+        assert sidecar.read_text() == "# New content"
+
+    def test_convert_skips_plaintext_files(self, temp_dir: Path) -> None:
+        """Plaintext files (.md, .rst, .txt) are never passed to Docling."""
+        from grounded_code_mcp.config import DoclingSettings
+
+        (temp_dir / "guide.md").write_text("# Guide")
+        (temp_dir / "notes.rst").write_text("Notes")
+        (temp_dir / "readme.txt").write_text("Readme")
+
+        mock_settings = MagicMock()
+        mock_settings.knowledge_base.sources_dir = temp_dir
+        mock_settings.collections = {}
+        mock_settings.docling = DoclingSettings()
+
+        runner = CliRunner()
+        with (
+            patch("grounded_code_mcp.__main__.Settings") as mock_cls,
+            patch("grounded_code_mcp.parser.DocumentParser"),
+        ):
+            mock_cls.load.return_value = mock_settings
+            result = runner.invoke(cli, ["convert", str(temp_dir)])
+
+        assert result.exit_code == 0
+        assert "No files to convert" in result.output
+
+    def test_convert_no_ocr_flag_disables_ocr(self, temp_dir: Path) -> None:
+        """--no-ocr flag passes enable_ocr=False to DocumentParser."""
+        from grounded_code_mcp.config import DoclingSettings
+
+        pdf_file = temp_dir / "book.pdf"
+        pdf_file.write_bytes(b"%PDF-1.4")
+
+        mock_settings = MagicMock()
+        mock_settings.knowledge_base.sources_dir = temp_dir
+        mock_settings.collections = {}
+        mock_settings.docling = DoclingSettings()
+
+        mock_parser_instance = MagicMock()
+        mock_parser_instance.parse.return_value = ParsedDocument(
+            path=pdf_file, content="# Content", file_type="pdf"
+        )
+
+        runner = CliRunner()
+        with (
+            patch("grounded_code_mcp.__main__.Settings") as mock_cls,
+            patch("grounded_code_mcp.parser.DocumentParser") as mock_parser_cls,
+        ):
+            mock_cls.load.return_value = mock_settings
+            mock_parser_cls.return_value = mock_parser_instance
+            result = runner.invoke(cli, ["convert", str(temp_dir), "--no-ocr"])
+
+        assert result.exit_code == 0
+        mock_parser_cls.assert_called_once_with(
+            enable_ocr=False, docling_settings=mock_settings.docling
+        )
+
+    def test_convert_respects_docling_settings_enable_ocr(self, temp_dir: Path) -> None:
+        """DoclingSettings.enable_ocr=False is honoured without --no-ocr flag."""
+        from grounded_code_mcp.config import DoclingSettings
+
+        pdf_file = temp_dir / "book.pdf"
+        pdf_file.write_bytes(b"%PDF-1.4")
+
+        docling_settings = DoclingSettings(enable_ocr=False)
+        mock_settings = MagicMock()
+        mock_settings.knowledge_base.sources_dir = temp_dir
+        mock_settings.collections = {}
+        mock_settings.docling = docling_settings
+
+        mock_parser_instance = MagicMock()
+        mock_parser_instance.parse.return_value = ParsedDocument(
+            path=pdf_file, content="# Content", file_type="pdf"
+        )
+
+        runner = CliRunner()
+        with (
+            patch("grounded_code_mcp.__main__.Settings") as mock_cls,
+            patch("grounded_code_mcp.parser.DocumentParser") as mock_parser_cls,
+        ):
+            mock_cls.load.return_value = mock_settings
+            mock_parser_cls.return_value = mock_parser_instance
+            runner.invoke(cli, ["convert", str(temp_dir)])
+
+        mock_parser_cls.assert_called_once_with(
+            enable_ocr=False, docling_settings=docling_settings
+        )
+
+    def test_convert_no_ocr_overrides_config_enable_ocr(self, temp_dir: Path) -> None:
+        """--no-ocr disables OCR even when DoclingSettings.enable_ocr is True."""
+        from grounded_code_mcp.config import DoclingSettings
+
+        pdf_file = temp_dir / "book.pdf"
+        pdf_file.write_bytes(b"%PDF-1.4")
+
+        docling_settings = DoclingSettings(enable_ocr=True)
+        mock_settings = MagicMock()
+        mock_settings.knowledge_base.sources_dir = temp_dir
+        mock_settings.collections = {}
+        mock_settings.docling = docling_settings
+
+        mock_parser_instance = MagicMock()
+        mock_parser_instance.parse.return_value = ParsedDocument(
+            path=pdf_file, content="# Content", file_type="pdf"
+        )
+
+        runner = CliRunner()
+        with (
+            patch("grounded_code_mcp.__main__.Settings") as mock_cls,
+            patch("grounded_code_mcp.parser.DocumentParser") as mock_parser_cls,
+        ):
+            mock_cls.load.return_value = mock_settings
+            mock_parser_cls.return_value = mock_parser_instance
+            runner.invoke(cli, ["convert", str(temp_dir), "--no-ocr"])
+
+        mock_parser_cls.assert_called_once_with(
+            enable_ocr=False, docling_settings=docling_settings
+        )
+
+    def test_convert_single_file_path_converts_that_file(self, temp_dir: Path) -> None:
+        """Passing a single file path converts only that file."""
+        from grounded_code_mcp.config import DoclingSettings
+
+        pdf_file = temp_dir / "single.pdf"
+        pdf_file.write_bytes(b"%PDF-1.4")
+
+        mock_settings = MagicMock()
+        mock_settings.knowledge_base.sources_dir = temp_dir
+        mock_settings.collections = {}
+        mock_settings.docling = DoclingSettings()
+
+        mock_parser_instance = MagicMock()
+        mock_parser_instance.parse.return_value = ParsedDocument(
+            path=pdf_file, content="# Single", file_type="pdf"
+        )
+
+        runner = CliRunner()
+        with (
+            patch("grounded_code_mcp.__main__.Settings") as mock_cls,
+            patch("grounded_code_mcp.parser.DocumentParser") as mock_parser_cls,
+        ):
+            mock_cls.load.return_value = mock_settings
+            mock_parser_cls.return_value = mock_parser_instance
+            result = runner.invoke(cli, ["convert", str(pdf_file)])
+
+        assert result.exit_code == 0
+        assert "single.pdf" in result.output
+        assert "1 converted" in result.output
+        assert (temp_dir / "single.pdf.md").read_text() == "# Single"
+
+    def test_convert_single_plaintext_file_reports_nothing_to_convert(
+        self, temp_dir: Path
+    ) -> None:
+        """Passing a single .md file path reports no files to convert."""
+        from grounded_code_mcp.config import DoclingSettings
+
+        md_file = temp_dir / "notes.md"
+        md_file.write_text("# Notes")
+
+        mock_settings = MagicMock()
+        mock_settings.knowledge_base.sources_dir = temp_dir
+        mock_settings.collections = {}
+        mock_settings.docling = DoclingSettings()
+
+        runner = CliRunner()
+        with (
+            patch("grounded_code_mcp.__main__.Settings") as mock_cls,
+            patch("grounded_code_mcp.parser.DocumentParser"),
+        ):
+            mock_cls.load.return_value = mock_settings
+            result = runner.invoke(cli, ["convert", str(md_file)])
+
+        assert result.exit_code == 0
+        assert "No files to convert" in result.output
