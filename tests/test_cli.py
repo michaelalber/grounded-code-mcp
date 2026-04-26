@@ -675,7 +675,7 @@ class TestConvertCommand:
         ):
             mock_cls.load.return_value = mock_settings
             mock_parser_cls.return_value = mock_parser_instance
-            result = runner.invoke(cli, ["convert", str(temp_dir), "--force"])
+            result = runner.invoke(cli, ["convert", str(pdf_file), "--force"])
 
         assert result.exit_code == 0
         assert sidecar.read_text() == "# New content"
@@ -728,7 +728,7 @@ class TestConvertCommand:
         ):
             mock_cls.load.return_value = mock_settings
             mock_parser_cls.return_value = mock_parser_instance
-            result = runner.invoke(cli, ["convert", str(temp_dir), "--no-ocr"])
+            result = runner.invoke(cli, ["convert", str(pdf_file), "--no-ocr"])
 
         assert result.exit_code == 0
         mock_parser_cls.assert_called_once_with(
@@ -760,7 +760,7 @@ class TestConvertCommand:
         ):
             mock_cls.load.return_value = mock_settings
             mock_parser_cls.return_value = mock_parser_instance
-            runner.invoke(cli, ["convert", str(temp_dir)])
+            runner.invoke(cli, ["convert", str(pdf_file)])
 
         mock_parser_cls.assert_called_once_with(
             enable_ocr=False, docling_settings=docling_settings
@@ -791,7 +791,7 @@ class TestConvertCommand:
         ):
             mock_cls.load.return_value = mock_settings
             mock_parser_cls.return_value = mock_parser_instance
-            runner.invoke(cli, ["convert", str(temp_dir), "--no-ocr"])
+            runner.invoke(cli, ["convert", str(pdf_file), "--no-ocr"])
 
         mock_parser_cls.assert_called_once_with(
             enable_ocr=False, docling_settings=docling_settings
@@ -852,3 +852,92 @@ class TestConvertCommand:
 
         assert result.exit_code == 0
         assert "No files to convert" in result.output
+
+    def test_convert_directory_spawns_subprocess_per_file(self, temp_dir: Path) -> None:
+        """Directory mode spawns an isolated subprocess for each file."""
+        from grounded_code_mcp.config import DoclingSettings
+
+        (temp_dir / "a.pdf").write_bytes(b"%PDF-1.4")
+        (temp_dir / "b.pdf").write_bytes(b"%PDF-1.4")
+
+        mock_settings = MagicMock()
+        mock_settings.knowledge_base.sources_dir = temp_dir
+        mock_settings.collections = {}
+        mock_settings.docling = DoclingSettings()
+
+        mock_proc = MagicMock()
+        mock_proc.returncode = 0
+        mock_proc.stderr = ""
+
+        runner = CliRunner()
+        with (
+            patch("grounded_code_mcp.__main__.Settings") as mock_cls,
+            patch("grounded_code_mcp.__main__.subprocess.run", return_value=mock_proc) as mock_sub,
+        ):
+            mock_cls.load.return_value = mock_settings
+            result = runner.invoke(cli, ["convert", str(temp_dir)])
+
+        assert result.exit_code == 0
+        assert mock_sub.call_count == 2
+        assert "2 converted" in result.output
+
+    def test_convert_directory_subprocess_crash_counted_as_failed(
+        self, temp_dir: Path
+    ) -> None:
+        """A subprocess with non-zero exit is counted as failed, not raised."""
+        from grounded_code_mcp.config import DoclingSettings
+
+        (temp_dir / "good.pdf").write_bytes(b"%PDF-1.4")
+        (temp_dir / "bad.pdf").write_bytes(b"%PDF-1.4")
+
+        mock_settings = MagicMock()
+        mock_settings.knowledge_base.sources_dir = temp_dir
+        mock_settings.collections = {}
+        mock_settings.docling = DoclingSettings()
+
+        def fake_run(cmd: list[str], **_kwargs: object) -> MagicMock:
+            proc = MagicMock()
+            proc.returncode = 1 if "bad.pdf" in cmd[-1] else 0
+            proc.stderr = "Aborted (core dumped)" if "bad.pdf" in cmd[-1] else ""
+            return proc
+
+        runner = CliRunner()
+        with (
+            patch("grounded_code_mcp.__main__.Settings") as mock_cls,
+            patch("grounded_code_mcp.__main__.subprocess.run", side_effect=fake_run),
+        ):
+            mock_cls.load.return_value = mock_settings
+            result = runner.invoke(cli, ["convert", str(temp_dir)])
+
+        assert result.exit_code == 0
+        assert "1 converted" in result.output
+        assert "1 failed" in result.output
+        assert "bad.pdf" in result.output
+
+    def test_convert_directory_no_ocr_propagated_to_subprocess(
+        self, temp_dir: Path
+    ) -> None:
+        """--no-ocr is forwarded to each subprocess command in directory mode."""
+        from grounded_code_mcp.config import DoclingSettings
+
+        (temp_dir / "doc.pdf").write_bytes(b"%PDF-1.4")
+
+        mock_settings = MagicMock()
+        mock_settings.knowledge_base.sources_dir = temp_dir
+        mock_settings.collections = {}
+        mock_settings.docling = DoclingSettings()
+
+        mock_proc = MagicMock()
+        mock_proc.returncode = 0
+        mock_proc.stderr = ""
+
+        runner = CliRunner()
+        with (
+            patch("grounded_code_mcp.__main__.Settings") as mock_cls,
+            patch("grounded_code_mcp.__main__.subprocess.run", return_value=mock_proc) as mock_sub,
+        ):
+            mock_cls.load.return_value = mock_settings
+            runner.invoke(cli, ["convert", str(temp_dir), "--no-ocr"])
+
+        cmd = mock_sub.call_args[0][0]
+        assert "--no-ocr" in cmd
