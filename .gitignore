@@ -72,6 +72,8 @@ sources/*
 sources/*/*
 !sources/*/.gitkeep
 !sources/*/README.md
+# Docling pre-converted Markdown sidecars are already covered by sources/*/*
+# sources/**/*.pdf.md  sources/**/*.epub.md  sources/**/*.docx.md  etc.
 logs/
 uv.lock
 thoughts/shared/progress/

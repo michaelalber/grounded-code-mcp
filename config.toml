@@ -65,6 +65,18 @@ text_chunk_overlap = 200
 # Maximum code chunk size before splitting on function boundaries
 max_code_chunk_size = 3000
 
+[docling]
+# Hardware acceleration for Docling document conversion.
+# Override in ~/.config/grounded-code-mcp/config.toml for GPU machines.
+device = "cuda"
+cuda_use_flash_attention2 = true
+num_threads = 8
+ocr_batch_size = 8
+layout_batch_size = 8
+table_batch_size = 8
+# flash-attn requires manual install: pip install flash-attn --no-build-isolation
+# Only Ampere+ GPUs (RTX 30xx/40xx, A100, H100)
+
 [vectorstore]
 # Provider: "qdrant" (primary) or "chromadb" (fallback)
 provider = "qdrant"
