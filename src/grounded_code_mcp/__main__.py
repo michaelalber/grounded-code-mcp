@@ -257,7 +257,9 @@ def convert(
             files = [p] if p.suffix.lower() not in PLAINTEXT_EXTENSIONS else []
         else:
             root = p
-            files = [f for f in scan_directory(root) if f.suffix.lower() not in PLAINTEXT_EXTENSIONS]
+            files = [
+                f for f in scan_directory(root) if f.suffix.lower() not in PLAINTEXT_EXTENSIONS
+            ]
     elif collection:
         for source_path, coll_name in settings.collections.items():
             if coll_name == collection:
@@ -276,7 +278,11 @@ def convert(
         return
 
     # Only instantiate DocumentParser in single-file mode; subprocesses create their own.
-    parser = DocumentParser(enable_ocr=enable_ocr, docling_settings=settings.docling) if is_single_file else None
+    parser = (
+        DocumentParser(enable_ocr=enable_ocr, docling_settings=settings.docling)
+        if is_single_file
+        else None
+    )
 
     converted = 0
     skipped = 0
