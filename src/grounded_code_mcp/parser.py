@@ -145,7 +145,9 @@ class DocumentParser:
         self.enable_ocr = enable_ocr
         self.enable_table_extraction = enable_table_extraction
         self.pdf_page_batch_size = pdf_page_batch_size
-        self._docling_settings = docling_settings if docling_settings is not None else _DoclingSettings()
+        self._docling_settings = (
+            docling_settings if docling_settings is not None else _DoclingSettings()
+        )
 
     def _get_converter(self) -> DocumentConverter:
         """Lazy-load the Docling converter with AcceleratorOptions from DoclingSettings."""

@@ -362,7 +362,9 @@ class TestEmbeddingClient:
 class TestTruncateChunkIndex:
     """Tests for chunk_index observability in _truncate_text."""
 
-    def test_truncate_logs_chunk_index_when_provided(self, caplog: pytest.LogCaptureFixture) -> None:
+    def test_truncate_logs_chunk_index_when_provided(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """Warning message includes chunk_index when it is provided."""
         client = EmbeddingClient(context_length=10)
         long_text = "x" * 500
@@ -378,7 +380,9 @@ class TestTruncateChunkIndex:
             client._truncate_text(long_text)
         assert "chunk_index=None" in caplog.text
 
-    def test_embed_many_warning_includes_chunk_index(self, caplog: pytest.LogCaptureFixture) -> None:
+    def test_embed_many_warning_includes_chunk_index(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """embed_many passes the absolute chunk index so truncation warnings are traceable."""
         client = EmbeddingClient(model="test-model", context_length=10)
         texts = ["short", "short", "x" * 500]
