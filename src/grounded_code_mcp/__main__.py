@@ -1,5 +1,7 @@
 """CLI entry point for grounded-code-mcp."""
 
+import subprocess
+import sys
 from pathlib import Path
 
 import click
@@ -221,6 +223,105 @@ def search(query: str, collection: str | None, n_results: int, min_score: float)
         content = r.content[:500] + "..." if len(r.content) > 500 else r.content
         console.print(content)
         console.print()
+
+
+@cli.command()
+@click.option("--collection", help="Convert a specific collection (default: all)")
+@click.option("--force", is_flag=True, help="Re-convert even if a sidecar already exists")
+@click.option("--dry-run", is_flag=True, help="List files without converting")
+@click.option("--no-ocr", "disable_ocr", is_flag=True, help="Disable OCR (overrides config)")
+@click.argument("path", required=False, type=click.Path(exists=True))
+def convert(
+    collection: str | None, force: bool, dry_run: bool, disable_ocr: bool, path: str | None
+) -> None:
+    """Pre-convert documents to Markdown sidecars using GPU-accelerated Docling."""
+    from grounded_code_mcp.parser import (
+        PLAINTEXT_EXTENSIONS,
+        DocumentParser,
+        scan_directory,
+        sidecar_path,
+    )
+
+    settings = Settings.load()
+    enable_ocr = False if disable_ocr else settings.docling.enable_ocr
+
+    # Single-file path: caller is already an isolated process — parse directly.
+    # Directory/collection/default: spawn one subprocess per file so a native
+    # crash (heap corruption from Docling's PDF stack) only kills that file's
+    # process and doesn't abort the whole batch.
+    is_single_file = path is not None and Path(path).is_file()
+
+    if path:
+        p = Path(path)
+        if p.is_file():
+            files = [p] if p.suffix.lower() not in PLAINTEXT_EXTENSIONS else []
+        else:
+            root = p
+            files = [f for f in scan_directory(root) if f.suffix.lower() not in PLAINTEXT_EXTENSIONS]
+    elif collection:
+        for source_path, coll_name in settings.collections.items():
+            if coll_name == collection:
+                root = Path(source_path)
+                break
+        else:
+            console.print(f"[red]Collection '{collection}' not found in config.[/red]")
+            return
+        files = [f for f in scan_directory(root) if f.suffix.lower() not in PLAINTEXT_EXTENSIONS]
+    else:
+        root = settings.knowledge_base.sources_dir
+        files = [f for f in scan_directory(root) if f.suffix.lower() not in PLAINTEXT_EXTENSIONS]
+
+    if not files:
+        console.print("[yellow]No files to convert.[/yellow]")
+        return
+
+    # Only instantiate DocumentParser in single-file mode; subprocesses create their own.
+    parser = DocumentParser(enable_ocr=enable_ocr, docling_settings=settings.docling) if is_single_file else None
+
+    converted = 0
+    skipped = 0
+    failed = 0
+
+    for file in files:
+        sc = sidecar_path(file)
+        if sc.exists() and not force:
+            skipped += 1
+            continue
+        if dry_run:
+            console.print(f"  [dim]Would convert:[/dim] {file}")
+            converted += 1
+            continue
+
+        if is_single_file:
+            assert parser is not None
+            try:
+                result = parser.parse(file)
+                sc.write_text(result.content, encoding="utf-8")
+                console.print(f"  [green]Converted:[/green] {file.name}")
+                converted += 1
+            except Exception as e:
+                console.print(f"  [red]Failed:[/red] {file.name}: {e}")
+                failed += 1
+        else:
+            cmd = [sys.executable, "-m", "grounded_code_mcp", "convert"]
+            if disable_ocr:
+                cmd.append("--no-ocr")
+            if force:
+                cmd.append("--force")
+            cmd.append(str(file))
+            proc = subprocess.run(cmd, capture_output=True, text=True)
+            if proc.returncode == 0:
+                console.print(f"  [green]Converted:[/green] {file.name}")
+                converted += 1
+            else:
+                console.print(f"  [red]Failed:[/red] {file.name}")
+                if proc.stderr:
+                    console.print(f"    {proc.stderr.strip()}")
+                failed += 1
+
+    console.print(
+        f"\n[bold]Summary:[/bold] {converted} converted / {skipped} skipped / {failed} failed"
+    )
 
 
 if __name__ == "__main__":
