@@ -51,6 +51,9 @@
   - Ingest jobs must run **sequentially** — parallel ingest causes OOM. Never run two collections simultaneously.
   - Collection names in queries use the bare suffix (e.g., `"rust"`); the server prepends `grounded_` automatically.
   - Machine-specific config (Ollama host, Qdrant URL, port overrides) belongs in `~/.config/grounded-code-mcp/config.toml`, never in the committed `config.toml`.
+  - Flash Attention 2 (optional, GPU-only): `pip install flash-attn --no-build-isolation`
+    Requires CUDA toolkit and an Ampere+ GPU (RTX 30xx/40xx, A100, H100).
+    Enable in config.toml: `cuda_use_flash_attention2 = true` under `[docling]`.
 
 ---
 
