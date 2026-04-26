@@ -151,7 +151,10 @@ class DocumentParser:
         """Lazy-load the Docling converter with AcceleratorOptions from DoclingSettings."""
         if self._converter is None:
             from docling.datamodel.base_models import InputFormat
-            from docling.datamodel.pipeline_options import AcceleratorOptions, PdfPipelineOptions
+            from docling.datamodel.pipeline_options import (  # type: ignore[attr-defined]
+                AcceleratorOptions,
+                PdfPipelineOptions,
+            )
             from docling.document_converter import DocumentConverter, PdfFormatOption
 
             s = self._docling_settings
