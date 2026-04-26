@@ -487,6 +487,33 @@ class TestInputValidation:
 
         mock_store.search.assert_called_once()
 
+    def test_search_knowledge_allows_any_collection_when_no_collections_configured(
+        self,
+        mock_embedder: MagicMock,
+        mock_store: MagicMock,
+        temp_dir: Path,
+    ) -> None:
+        """When settings.collections is empty (config not found), collection validation
+        must be skipped so callers from other working directories are not locked out."""
+        empty_settings = Settings(
+            knowledge_base=KnowledgeBaseSettings(
+                sources_dir=temp_dir / "sources",
+                data_dir=temp_dir / "data",
+            ),
+            vectorstore=VectorStoreSettings(provider="qdrant", collection_prefix="grounded_"),
+            collections={},
+        )
+        mock_store.list_collections.return_value = ["grounded_rust"]
+        with (
+            patch("grounded_code_mcp.server._settings", empty_settings),
+            patch("grounded_code_mcp.server._embedder", mock_embedder),
+            patch("grounded_code_mcp.server.create_vector_store", return_value=mock_store),
+        ):
+            results = _search_knowledge_impl("query", collection="rust")
+
+        assert not any("error" in r for r in results)
+        mock_store.search.assert_called_once()
+
     # M4: initialize idempotency (lock-protected re-init)
 
     def test_initialize_is_idempotent_when_already_initialized(self, temp_dir: Path) -> None:
