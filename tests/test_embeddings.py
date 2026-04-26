@@ -1,5 +1,6 @@
 """Tests for embeddings generation."""
 
+import logging
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -356,6 +357,42 @@ class TestEmbeddingClient:
             dims = client.get_embedding_dimensions()
 
         assert dims == 1024
+
+
+class TestTruncateChunkIndex:
+    """Tests for chunk_index observability in _truncate_text."""
+
+    def test_truncate_logs_chunk_index_when_provided(self, caplog: pytest.LogCaptureFixture) -> None:
+        """Warning message includes chunk_index when it is provided."""
+        client = EmbeddingClient(context_length=10)
+        long_text = "x" * 500
+        with caplog.at_level(logging.WARNING, logger="grounded_code_mcp.embeddings"):
+            client._truncate_text(long_text, chunk_index=7)
+        assert "chunk_index=7" in caplog.text
+
+    def test_truncate_logs_none_when_no_chunk_index(self, caplog: pytest.LogCaptureFixture) -> None:
+        """Warning still fires when chunk_index is omitted; value shows as None."""
+        client = EmbeddingClient(context_length=10)
+        long_text = "x" * 500
+        with caplog.at_level(logging.WARNING, logger="grounded_code_mcp.embeddings"):
+            client._truncate_text(long_text)
+        assert "chunk_index=None" in caplog.text
+
+    def test_embed_many_warning_includes_chunk_index(self, caplog: pytest.LogCaptureFixture) -> None:
+        """embed_many passes the absolute chunk index so truncation warnings are traceable."""
+        client = EmbeddingClient(model="test-model", context_length=10)
+        texts = ["short", "short", "x" * 500]
+
+        mock_ollama = MagicMock()
+        mock_ollama.embed.return_value = {"embeddings": [[0.1], [0.2], [0.3]]}
+
+        with (
+            patch.object(client, "_client", mock_ollama),
+            caplog.at_level(logging.WARNING, logger="grounded_code_mcp.embeddings"),
+        ):
+            client.embed_many(texts)
+
+        assert "chunk_index=2" in caplog.text
 
 
 class TestGetHelpfulErrorMessage:
