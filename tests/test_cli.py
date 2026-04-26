@@ -762,9 +762,7 @@ class TestConvertCommand:
             mock_parser_cls.return_value = mock_parser_instance
             runner.invoke(cli, ["convert", str(pdf_file)])
 
-        mock_parser_cls.assert_called_once_with(
-            enable_ocr=False, docling_settings=docling_settings
-        )
+        mock_parser_cls.assert_called_once_with(enable_ocr=False, docling_settings=docling_settings)
 
     def test_convert_no_ocr_overrides_config_enable_ocr(self, temp_dir: Path) -> None:
         """--no-ocr disables OCR even when DoclingSettings.enable_ocr is True."""
@@ -793,9 +791,7 @@ class TestConvertCommand:
             mock_parser_cls.return_value = mock_parser_instance
             runner.invoke(cli, ["convert", str(pdf_file), "--no-ocr"])
 
-        mock_parser_cls.assert_called_once_with(
-            enable_ocr=False, docling_settings=docling_settings
-        )
+        mock_parser_cls.assert_called_once_with(enable_ocr=False, docling_settings=docling_settings)
 
     def test_convert_single_file_path_converts_that_file(self, temp_dir: Path) -> None:
         """Passing a single file path converts only that file."""
@@ -828,9 +824,7 @@ class TestConvertCommand:
         assert "1 converted" in result.output
         assert (temp_dir / "single.pdf.md").read_text() == "# Single"
 
-    def test_convert_single_plaintext_file_reports_nothing_to_convert(
-        self, temp_dir: Path
-    ) -> None:
+    def test_convert_single_plaintext_file_reports_nothing_to_convert(self, temp_dir: Path) -> None:
         """Passing a single .md file path reports no files to convert."""
         from grounded_code_mcp.config import DoclingSettings
 
@@ -881,9 +875,7 @@ class TestConvertCommand:
         assert mock_sub.call_count == 2
         assert "2 converted" in result.output
 
-    def test_convert_directory_subprocess_crash_counted_as_failed(
-        self, temp_dir: Path
-    ) -> None:
+    def test_convert_directory_subprocess_crash_counted_as_failed(self, temp_dir: Path) -> None:
         """A subprocess with non-zero exit is counted as failed, not raised."""
         from grounded_code_mcp.config import DoclingSettings
 
@@ -914,9 +906,7 @@ class TestConvertCommand:
         assert "1 failed" in result.output
         assert "bad.pdf" in result.output
 
-    def test_convert_directory_no_ocr_propagated_to_subprocess(
-        self, temp_dir: Path
-    ) -> None:
+    def test_convert_directory_no_ocr_propagated_to_subprocess(self, temp_dir: Path) -> None:
         """--no-ocr is forwarded to each subprocess command in directory mode."""
         from grounded_code_mcp.config import DoclingSettings
 

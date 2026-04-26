@@ -251,7 +251,9 @@ class EmbeddingClient:
         total = len(texts)
 
         for i in range(0, total, batch_size):
-            truncated = [self._truncate_text(t, i + j) for j, t in enumerate(texts[i : i + batch_size])]
+            truncated = [
+                self._truncate_text(t, i + j) for j, t in enumerate(texts[i : i + batch_size])
+            ]
             input_batch = [f"query: {t}" for t in truncated] if is_query else truncated
 
             if show_progress:
