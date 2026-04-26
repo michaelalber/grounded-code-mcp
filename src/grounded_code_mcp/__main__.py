@@ -1,6 +1,6 @@
 """CLI entry point for grounded-code-mcp."""
 
-import subprocess
+import subprocess  # nosec B404
 import sys
 from pathlib import Path
 
@@ -293,7 +293,8 @@ def convert(
             continue
 
         if is_single_file:
-            assert parser is not None
+            if parser is None:
+                raise RuntimeError("Parser not initialized for single-file conversion.")
             try:
                 result = parser.parse(file)
                 sc.write_text(result.content, encoding="utf-8")
@@ -309,7 +310,7 @@ def convert(
             if force:
                 cmd.append("--force")
             cmd.append(str(file))
-            proc = subprocess.run(cmd, capture_output=True, text=True)
+            proc = subprocess.run(cmd, capture_output=True, text=True)  # noqa: S603  # nosec B603
             if proc.returncode == 0:
                 console.print(f"  [green]Converted:[/green] {file.name}")
                 converted += 1
