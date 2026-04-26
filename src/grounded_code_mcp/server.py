@@ -150,10 +150,11 @@ def _search_knowledge_impl(
     n_results = max(MIN_N_RESULTS, min(n_results, MAX_N_RESULTS))
     min_score = max(MIN_SCORE, min(min_score, MAX_SCORE))
 
-    # M3: validate collection against the configured allowlist
+    # M3: validate collection against the configured allowlist.
+    # Skip when collections={} — config not found from the caller's cwd.
     if collection is not None:
         known_collections = set(settings.collections.values())
-        if collection not in known_collections:
+        if known_collections and collection not in known_collections:
             return [{"error": f"Unknown collection: {collection!r}"}]
 
     embedder = get_embedder()
