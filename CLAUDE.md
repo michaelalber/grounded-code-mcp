@@ -37,7 +37,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - **Pattern:** Ingest pipeline → vector search → MCP tool layer. Transport is stdio (default) or HTTP (local only, binds `127.0.0.1`).
 - **Entry points:**
-  - `src/grounded_code_mcp/__main__.py` — Click CLI (`ingest`, `serve`, `status`, `search`)
+  - `src/grounded_code_mcp/__main__.py` — Click CLI (`ingest`, `convert`, `serve`, `status`, `search`)
   - `src/grounded_code_mcp/server.py` — FastMCP server and all MCP tool handlers
 - **Key directories:**
   - `src/grounded_code_mcp/` — production source (8 pipeline modules)
@@ -53,6 +53,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   - Ingest jobs must run **sequentially** — parallel ingest causes OOM. Never run two collections simultaneously.
   - Collection names in queries use the bare suffix (e.g., `"rust"`); the server prepends `grounded_` automatically.
   - Machine-specific config (Ollama host, Qdrant URL, port overrides) belongs in `~/.config/grounded-code-mcp/config.toml`, never in the committed `config.toml`.
+  - `convert` runs Docling on binary sources and writes `foo.pdf.md` sidecars. Run before `ingest` on GPU machines; `ingest` then reads the sidecar and skips Docling entirely.
+  - `flash-attn` is **not** in `pyproject.toml` — manual install only: `pip install flash-attn --no-build-isolation`. Requires CUDA toolkit + Ampere+ GPU. Enable via `cuda_use_flash_attention2 = true` in `[docling]`.
 
 ---
 
@@ -82,6 +84,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | 2025-02 | HTTP transport binds `127.0.0.1` only | Security by default — never expose to network without explicit override |
 | 2025-02 | Separate RED / GREEN / REFACTOR commits | Verifiable TDD evidence on feature branches; RED commits never pushed to `main` |
 | 2026-04 | Removed Microsoft Learn PDF exports and Writing Style Guide from `dotnet` and `internal` collections | Live equivalents covered by the Microsoft Learn MCP; keeping static snapshots is redundant and creates drift |
+| 2026-04 | Markdown sidecars (`foo.pdf.md`) + GPU-accelerated `convert` command | Decouples expensive Docling conversion (GPU) from ingest (CPU); sidecars let `ingest` use the fast plaintext path. `flash-attn` kept out of `pyproject.toml` — manual install only, Ampere+ GPU required. |
 
 ---
 

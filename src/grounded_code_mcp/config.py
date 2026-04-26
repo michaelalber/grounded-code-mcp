@@ -68,6 +68,24 @@ class ChunkingSettings(BaseModel):
     )
 
 
+class DoclingSettings(BaseModel):
+    """Hardware acceleration settings for Docling document conversion."""
+
+    device: str = Field(default="auto")
+    cuda_use_flash_attention2: bool = Field(default=False)
+    num_threads: int = Field(default=4)
+    ocr_batch_size: int = Field(default=4)
+    layout_batch_size: int = Field(default=4)
+    table_batch_size: int = Field(default=4)
+    enable_ocr: bool = Field(
+        default=True,
+        description=(
+            "Run OCR on scanned pages. Set to false to skip OCR entirely — "
+            "workaround for docling-parse AttributeError on certain PDFs."
+        ),
+    )
+
+
 class VectorStoreSettings(BaseModel):
     """Settings for the vector store."""
 
@@ -82,6 +100,7 @@ class Settings(BaseModel):
     knowledge_base: KnowledgeBaseSettings = Field(default_factory=KnowledgeBaseSettings)
     ollama: OllamaSettings = Field(default_factory=OllamaSettings)
     chunking: ChunkingSettings = Field(default_factory=ChunkingSettings)
+    docling: DoclingSettings = Field(default_factory=DoclingSettings)
     vectorstore: VectorStoreSettings = Field(default_factory=VectorStoreSettings)
     collections: dict[str, str] = Field(default_factory=dict)
 

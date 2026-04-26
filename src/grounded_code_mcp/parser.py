@@ -11,7 +11,11 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from docling.document_converter import DocumentConverter
 
+    from grounded_code_mcp.config import DoclingSettings
+
 logger = logging.getLogger(__name__)
+
+PLAINTEXT_EXTENSIONS = {".md", ".markdown", ".mdx", ".rst", ".txt", ".asciidoc", ".adoc"}
 
 # Supported file extensions
 SUPPORTED_EXTENSIONS = {
@@ -103,6 +107,18 @@ def get_file_type(path: Path) -> str:
     return type_map.get(suffix, suffix.lstrip("."))
 
 
+def sidecar_path(source: Path) -> Path:
+    """Return the pre-converted Markdown sidecar path for a binary source file.
+
+    Args:
+        source: Path to the source document (e.g. ``book.pdf``).
+
+    Returns:
+        Sidecar path with ``.md`` appended (e.g. ``book.pdf.md``).
+    """
+    return source.with_name(source.name + ".md")
+
+
 class DocumentParser:
     """Parser for converting documents to markdown using Docling."""
 
@@ -112,6 +128,7 @@ class DocumentParser:
         enable_ocr: bool = True,
         enable_table_extraction: bool = True,
         pdf_page_batch_size: int = 0,
+        docling_settings: DoclingSettings | None = None,
     ) -> None:
         """Initialize the parser.
 
@@ -120,18 +137,42 @@ class DocumentParser:
             enable_table_extraction: Whether to extract tables from documents.
             pdf_page_batch_size: Split PDFs into batches of this many pages before
                 passing to Docling. Bounds peak memory for large files. 0 disables.
+            docling_settings: GPU acceleration and batch-size options for Docling.
         """
+        from grounded_code_mcp.config import DoclingSettings as _DoclingSettings
+
         self._converter: DocumentConverter | None = None
         self.enable_ocr = enable_ocr
         self.enable_table_extraction = enable_table_extraction
         self.pdf_page_batch_size = pdf_page_batch_size
+        self._docling_settings = docling_settings if docling_settings is not None else _DoclingSettings()
 
     def _get_converter(self) -> DocumentConverter:
-        """Lazy-load the Docling converter."""
+        """Lazy-load the Docling converter with AcceleratorOptions from DoclingSettings."""
         if self._converter is None:
-            from docling.document_converter import DocumentConverter
+            from docling.datamodel.base_models import InputFormat
+            from docling.datamodel.pipeline_options import AcceleratorOptions, PdfPipelineOptions
+            from docling.document_converter import DocumentConverter, PdfFormatOption
 
-            self._converter = DocumentConverter()
+            s = self._docling_settings
+            accel = AcceleratorOptions(
+                num_threads=s.num_threads,
+                device=s.device,
+                cuda_use_flash_attention2=s.cuda_use_flash_attention2,
+            )
+            pdf_opts = PdfPipelineOptions(
+                accelerator_options=accel,
+                do_ocr=self.enable_ocr,
+                do_table_structure=self.enable_table_extraction,
+                ocr_batch_size=s.ocr_batch_size,
+                layout_batch_size=s.layout_batch_size,
+                table_batch_size=s.table_batch_size,
+            )
+            self._converter = DocumentConverter(
+                format_options={
+                    InputFormat.PDF: PdfFormatOption(pipeline_options=pdf_opts),
+                }
+            )
         return self._converter
 
     def parse(self, path: Path) -> ParsedDocument:
@@ -159,6 +200,17 @@ class DocumentParser:
         # For plain text formats, read the file directly
         if file_type in ("md", "asciidoc", "rst", "txt"):
             return self._parse_plaintext(path, file_type)
+
+        # Prefer pre-converted Markdown sidecar when available
+        sc = sidecar_path(path)
+        if sc.exists():
+            doc = self._parse_plaintext(sc, "md")
+            return ParsedDocument(
+                path=path,
+                content=doc.content,
+                title=doc.title,
+                file_type=file_type,
+            )
 
         # Large-PDF path: split into page batches before handing to Docling
         if file_type == "pdf" and self.pdf_page_batch_size > 0:
@@ -422,6 +474,9 @@ def scan_directory(
         if path.name in exclude_filenames:
             continue
         if exclude_patterns and any(fnmatch(path.name, p) for p in exclude_patterns):
+            continue
+        # Skip *.*.md sidecar files (derived from binary sources)
+        if path.suffix.lower() == ".md" and "." in path.stem:
             continue
         paths.append(path)
 
