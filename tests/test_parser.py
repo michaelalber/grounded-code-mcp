@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from grounded_code_mcp.parser import (
+    PLAINTEXT_EXTENSIONS,
     DocumentParseError,
     DocumentParser,
     ParsedDocument,
@@ -13,6 +14,7 @@ from grounded_code_mcp.parser import (
     get_file_type,
     is_supported_format,
     scan_directory,
+    sidecar_path,
 )
 
 
@@ -608,3 +610,195 @@ class TestScanDirectory:
 
         assert "CONTRIBUTING.md" in names
         assert "guide.md" in names
+
+    def test_scan_excludes_sidecar_files(self, temp_dir: Path) -> None:
+        """scan_directory skips *.*.md sidecar files (double-extension)."""
+        (temp_dir / "book.pdf.md").write_text("# Sidecar")
+        (temp_dir / "guide.epub.md").write_text("# Another sidecar")
+        (temp_dir / "README.md").write_text("# Real markdown")
+
+        result = scan_directory(temp_dir)
+        names = [p.name for p in result]
+
+        assert "book.pdf.md" not in names
+        assert "guide.epub.md" not in names
+        assert "README.md" in names
+
+    def test_scan_plain_md_not_filtered_as_sidecar(self, temp_dir: Path) -> None:
+        """Plain .md files with no dot in stem are not filtered as sidecars."""
+        (temp_dir / "api.md").write_text("# API")
+        (temp_dir / "CHANGELOG.md").write_text("# Changelog")
+
+        result = scan_directory(temp_dir)
+        names = [p.name for p in result]
+
+        assert "api.md" in names
+        assert "CHANGELOG.md" in names
+
+
+class TestPlaintextExtensions:
+    """Tests for PLAINTEXT_EXTENSIONS constant."""
+
+    def test_contains_expected_extensions(self) -> None:
+        """PLAINTEXT_EXTENSIONS covers all common plain-text formats."""
+        assert ".md" in PLAINTEXT_EXTENSIONS
+        assert ".markdown" in PLAINTEXT_EXTENSIONS
+        assert ".mdx" in PLAINTEXT_EXTENSIONS
+        assert ".rst" in PLAINTEXT_EXTENSIONS
+        assert ".txt" in PLAINTEXT_EXTENSIONS
+        assert ".asciidoc" in PLAINTEXT_EXTENSIONS
+        assert ".adoc" in PLAINTEXT_EXTENSIONS
+
+    def test_pdf_not_in_plaintext_extensions(self) -> None:
+        assert ".pdf" not in PLAINTEXT_EXTENSIONS
+
+
+class TestSidecarPath:
+    """Tests for sidecar_path helper."""
+
+    def test_sidecar_path_appends_md(self) -> None:
+        assert sidecar_path(Path("sources/rust/book.pdf")) == Path("sources/rust/book.pdf.md")
+
+    def test_sidecar_path_for_epub(self) -> None:
+        assert sidecar_path(Path("doc.epub")) == Path("doc.epub.md")
+
+    def test_sidecar_path_for_html(self) -> None:
+        assert sidecar_path(Path("page.html")) == Path("page.html.md")
+
+
+class TestSidecarAwareParse:
+    """Tests for sidecar-aware parse()."""
+
+    def test_parse_uses_sidecar_when_present(self, temp_dir: Path) -> None:
+        """parse() reads content from sidecar .md file for binary formats."""
+        pdf_file = temp_dir / "book.pdf"
+        pdf_file.write_bytes(b"%PDF-1.4")
+        sidecar = temp_dir / "book.pdf.md"
+        sidecar.write_text("# From Sidecar\n\nPreconverted content.")
+
+        parser = DocumentParser()
+        with patch.object(
+            parser,
+            "_get_converter",
+            side_effect=AssertionError("Docling must not be called"),
+        ):
+            result = parser.parse(pdf_file)
+
+        assert result.content == "# From Sidecar\n\nPreconverted content."
+        assert result.title == "From Sidecar"
+        assert result.file_type == "pdf"
+        assert result.path == pdf_file
+
+    def test_parse_falls_back_to_docling_when_no_sidecar(self, temp_dir: Path) -> None:
+        """parse() uses Docling when no sidecar exists for a binary file."""
+        pdf_file = temp_dir / "book.pdf"
+        pdf_file.write_bytes(b"%PDF-1.4")
+
+        mock_doc = MagicMock()
+        mock_doc.export_to_markdown.return_value = "# Docling Output"
+        mock_doc.title = None
+        mock_doc.pages = [1]
+        mock_result = MagicMock()
+        mock_result.document = mock_doc
+        mock_converter = MagicMock()
+        mock_converter.convert.return_value = mock_result
+
+        parser = DocumentParser()
+        with patch.object(parser, "_get_converter", return_value=mock_converter):
+            result = parser.parse(pdf_file)
+
+        assert result.content == "# Docling Output"
+        mock_converter.convert.assert_called_once()
+
+    def test_parse_md_does_not_check_sidecar(self, temp_dir: Path) -> None:
+        """Plain .md files bypass sidecar lookup and are read directly."""
+        md_file = temp_dir / "README.md"
+        md_file.write_text("# README")
+        (temp_dir / "README.md.md").write_text("# Should not be read")
+
+        parser = DocumentParser()
+        result = parser.parse(md_file)
+
+        assert result.content == "# README"
+        assert result.title == "README"
+
+    def test_parse_rst_does_not_check_sidecar(self, temp_dir: Path) -> None:
+        """Plain .rst files bypass sidecar lookup."""
+        rst_file = temp_dir / "guide.rst"
+        rst_file.write_text("Guide\n=====\n\nContent.")
+        (temp_dir / "guide.rst.md").write_text("# Wrong sidecar")
+
+        parser = DocumentParser()
+        result = parser.parse(rst_file)
+
+        assert "Content." in result.content
+
+
+class TestDocumentParserDoclingSettings:
+    """Tests for DocumentParser with DoclingSettings."""
+
+    def test_docling_settings_default_uses_auto_device(self) -> None:
+        """DocumentParser without docling_settings defaults to device='auto'."""
+        parser = DocumentParser()
+        assert parser._docling_settings.device == "auto"
+
+    def test_docling_settings_accepted(self) -> None:
+        """DocumentParser accepts a DoclingSettings kwarg."""
+        from grounded_code_mcp.config import DoclingSettings
+
+        settings = DoclingSettings(device="cuda")
+        parser = DocumentParser(docling_settings=settings)
+        assert parser._docling_settings is settings
+
+    def test_get_converter_passes_accelerator_device(self) -> None:
+        """_get_converter builds AcceleratorOptions with the configured device."""
+        from docling.datamodel.base_models import InputFormat
+
+        from grounded_code_mcp.config import DoclingSettings
+
+        settings = DoclingSettings(device="cuda", num_threads=8)
+        parser = DocumentParser(docling_settings=settings)
+
+        with patch("docling.document_converter.DocumentConverter") as mock_cls:
+            mock_cls.return_value = MagicMock()
+            parser._get_converter()
+
+        assert mock_cls.called
+        pdf_opt = mock_cls.call_args.kwargs["format_options"][InputFormat.PDF]
+        accel = pdf_opt.pipeline_options.accelerator_options
+        assert str(accel.device) == "cuda"
+        assert accel.num_threads == 8
+
+    def test_get_converter_passes_flash_attention(self) -> None:
+        """_get_converter forwards cuda_use_flash_attention2 to AcceleratorOptions."""
+        from docling.datamodel.base_models import InputFormat
+
+        from grounded_code_mcp.config import DoclingSettings
+
+        settings = DoclingSettings(device="cuda", cuda_use_flash_attention2=True)
+        parser = DocumentParser(docling_settings=settings)
+
+        with patch("docling.document_converter.DocumentConverter") as mock_cls:
+            mock_cls.return_value = MagicMock()
+            parser._get_converter()
+
+        pdf_opt = mock_cls.call_args.kwargs["format_options"][InputFormat.PDF]
+        assert pdf_opt.pipeline_options.accelerator_options.cuda_use_flash_attention2 is True
+
+    def test_get_converter_passes_batch_sizes(self) -> None:
+        """_get_converter passes batch sizes from DoclingSettings to PdfPipelineOptions."""
+        from docling.datamodel.base_models import InputFormat
+
+        from grounded_code_mcp.config import DoclingSettings
+
+        settings = DoclingSettings(ocr_batch_size=8, layout_batch_size=8, table_batch_size=8)
+        parser = DocumentParser(docling_settings=settings)
+
+        with patch("docling.document_converter.DocumentConverter") as mock_cls:
+            mock_cls.return_value = MagicMock()
+            parser._get_converter()
+
+        pdf_opt = mock_cls.call_args.kwargs["format_options"][InputFormat.PDF]
+        assert pdf_opt.pipeline_options.ocr_batch_size == 8
+        assert pdf_opt.pipeline_options.layout_batch_size == 8
+        assert pdf_opt.pipeline_options.table_batch_size == 8

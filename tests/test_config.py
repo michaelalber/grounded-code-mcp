@@ -6,6 +6,7 @@ import pytest
 
 from grounded_code_mcp.config import (
     ChunkingSettings,
+    DoclingSettings,
     KnowledgeBaseSettings,
     OllamaSettings,
     Settings,
@@ -273,3 +274,47 @@ class TestSettings:
         assert "ollama" in result
         assert "chunking" in result
         assert "vectorstore" in result
+
+
+class TestDoclingSettings:
+    """Tests for DoclingSettings model."""
+
+    def test_defaults(self) -> None:
+        """DoclingSettings has safe, CPU-friendly defaults."""
+        settings = DoclingSettings()
+        assert settings.device == "auto"
+        assert settings.cuda_use_flash_attention2 is False
+        assert settings.num_threads == 4
+        assert settings.ocr_batch_size == 4
+        assert settings.layout_batch_size == 4
+        assert settings.table_batch_size == 4
+
+    def test_settings_has_docling_field(self) -> None:
+        """Settings model exposes a docling field."""
+        settings = Settings()
+        assert isinstance(settings.docling, DoclingSettings)
+
+    def test_docling_field_loaded_from_toml(self, tmp_path: Path) -> None:
+        """Settings.from_toml reads [docling] section."""
+        config_file = tmp_path / "config.toml"
+        config_file.write_text('[docling]\ndevice = "cuda"\nnum_threads = 8\n')
+        settings = Settings.from_toml(config_file)
+        assert settings.docling.device == "cuda"
+        assert settings.docling.num_threads == 8
+
+    def test_enable_ocr_defaults_to_true(self) -> None:
+        """enable_ocr defaults to True so existing behaviour is unchanged."""
+        settings = DoclingSettings()
+        assert settings.enable_ocr is True
+
+    def test_enable_ocr_can_be_disabled(self) -> None:
+        """enable_ocr can be set to False to bypass OCR entirely."""
+        settings = DoclingSettings(enable_ocr=False)
+        assert settings.enable_ocr is False
+
+    def test_enable_ocr_loaded_from_toml(self, tmp_path: Path) -> None:
+        """Settings.from_toml reads enable_ocr from [docling] section."""
+        config_file = tmp_path / "config.toml"
+        config_file.write_text("[docling]\nenable_ocr = false\n")
+        settings = Settings.from_toml(config_file)
+        assert settings.docling.enable_ocr is False
