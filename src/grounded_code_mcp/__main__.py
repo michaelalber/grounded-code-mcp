@@ -223,5 +223,77 @@ def search(query: str, collection: str | None, n_results: int, min_score: float)
         console.print()
 
 
+@cli.command()
+@click.option("--collection", help="Convert a specific collection (default: all)")
+@click.option("--force", is_flag=True, help="Re-convert even if a sidecar already exists")
+@click.option("--dry-run", is_flag=True, help="List files without converting")
+@click.option("--no-ocr", "disable_ocr", is_flag=True, help="Disable OCR (overrides config)")
+@click.argument("path", required=False, type=click.Path(exists=True))
+def convert(
+    collection: str | None, force: bool, dry_run: bool, disable_ocr: bool, path: str | None
+) -> None:
+    """Pre-convert documents to Markdown sidecars using GPU-accelerated Docling."""
+    from grounded_code_mcp.parser import (
+        PLAINTEXT_EXTENSIONS,
+        DocumentParser,
+        scan_directory,
+        sidecar_path,
+    )
+
+    settings = Settings.load()
+    enable_ocr = False if disable_ocr else settings.docling.enable_ocr
+    parser = DocumentParser(enable_ocr=enable_ocr, docling_settings=settings.docling)
+
+    if path:
+        p = Path(path)
+        if p.is_file():
+            files = [p] if p.suffix.lower() not in PLAINTEXT_EXTENSIONS else []
+        else:
+            root = p
+            files = [f for f in scan_directory(root) if f.suffix.lower() not in PLAINTEXT_EXTENSIONS]
+    elif collection:
+        for source_path, coll_name in settings.collections.items():
+            if coll_name == collection:
+                root = Path(source_path)
+                break
+        else:
+            console.print(f"[red]Collection '{collection}' not found in config.[/red]")
+            return
+        files = [f for f in scan_directory(root) if f.suffix.lower() not in PLAINTEXT_EXTENSIONS]
+    else:
+        root = settings.knowledge_base.sources_dir
+        files = [f for f in scan_directory(root) if f.suffix.lower() not in PLAINTEXT_EXTENSIONS]
+
+    if not files:
+        console.print("[yellow]No files to convert.[/yellow]")
+        return
+
+    converted = 0
+    skipped = 0
+    failed = 0
+
+    for file in files:
+        sc = sidecar_path(file)
+        if sc.exists() and not force:
+            skipped += 1
+            continue
+        if dry_run:
+            console.print(f"  [dim]Would convert:[/dim] {file}")
+            converted += 1
+            continue
+        try:
+            result = parser.parse(file)
+            sc.write_text(result.content, encoding="utf-8")
+            console.print(f"  [green]Converted:[/green] {file.name}")
+            converted += 1
+        except Exception as e:
+            console.print(f"  [red]Failed:[/red] {file.name}: {e}")
+            failed += 1
+
+    console.print(
+        f"\n[bold]Summary:[/bold] {converted} converted / {skipped} skipped / {failed} failed"
+    )
+
+
 if __name__ == "__main__":
     cli()
