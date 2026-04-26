@@ -1,5 +1,7 @@
 """CLI entry point for grounded-code-mcp."""
 
+import subprocess
+import sys
 from pathlib import Path
 
 import click
@@ -242,7 +244,12 @@ def convert(
 
     settings = Settings.load()
     enable_ocr = False if disable_ocr else settings.docling.enable_ocr
-    parser = DocumentParser(enable_ocr=enable_ocr, docling_settings=settings.docling)
+
+    # Single-file path: caller is already an isolated process — parse directly.
+    # Directory/collection/default: spawn one subprocess per file so a native
+    # crash (heap corruption from Docling's PDF stack) only kills that file's
+    # process and doesn't abort the whole batch.
+    is_single_file = path is not None and Path(path).is_file()
 
     if path:
         p = Path(path)
@@ -268,6 +275,9 @@ def convert(
         console.print("[yellow]No files to convert.[/yellow]")
         return
 
+    # Only instantiate DocumentParser in single-file mode; subprocesses create their own.
+    parser = DocumentParser(enable_ocr=enable_ocr, docling_settings=settings.docling) if is_single_file else None
+
     converted = 0
     skipped = 0
     failed = 0
@@ -281,14 +291,33 @@ def convert(
             console.print(f"  [dim]Would convert:[/dim] {file}")
             converted += 1
             continue
-        try:
-            result = parser.parse(file)
-            sc.write_text(result.content, encoding="utf-8")
-            console.print(f"  [green]Converted:[/green] {file.name}")
-            converted += 1
-        except Exception as e:
-            console.print(f"  [red]Failed:[/red] {file.name}: {e}")
-            failed += 1
+
+        if is_single_file:
+            assert parser is not None
+            try:
+                result = parser.parse(file)
+                sc.write_text(result.content, encoding="utf-8")
+                console.print(f"  [green]Converted:[/green] {file.name}")
+                converted += 1
+            except Exception as e:
+                console.print(f"  [red]Failed:[/red] {file.name}: {e}")
+                failed += 1
+        else:
+            cmd = [sys.executable, "-m", "grounded_code_mcp", "convert"]
+            if disable_ocr:
+                cmd.append("--no-ocr")
+            if force:
+                cmd.append("--force")
+            cmd.append(str(file))
+            proc = subprocess.run(cmd, capture_output=True, text=True)
+            if proc.returncode == 0:
+                console.print(f"  [green]Converted:[/green] {file.name}")
+                converted += 1
+            else:
+                console.print(f"  [red]Failed:[/red] {file.name}")
+                if proc.stderr:
+                    console.print(f"    {proc.stderr.strip()}")
+                failed += 1
 
     console.print(
         f"\n[bold]Summary:[/bold] {converted} converted / {skipped} skipped / {failed} failed"
