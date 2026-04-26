@@ -69,6 +69,7 @@ class IngestionPipeline:
 
         self.parser = parser or DocumentParser(
             pdf_page_batch_size=settings.knowledge_base.pdf_page_batch_size,
+            docling_settings=settings.docling,
         )
         self.chunker = chunker or DocumentChunker.from_settings(settings.chunking)
         self.embedder = embedder or EmbeddingClient.from_settings(settings.ollama)
