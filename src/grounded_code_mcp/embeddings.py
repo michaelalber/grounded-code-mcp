@@ -110,7 +110,7 @@ class EmbeddingClient:
         """
         if len(text) <= self.max_chars:
             return text
-        logger.warning(
+        logger.warning(  # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
             "Truncating text from %d to %d chars (context_length=%d tokens, chunk_index=%s)",
             len(text),
             self.max_chars,
