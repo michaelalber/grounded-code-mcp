@@ -65,7 +65,7 @@ The pipeline has three separate processes. `convert` is a one-time GPU step that
 - **Local embeddings** — Ollama with snowflake-arctic-embed2 (1024 dimensions, 8K context)
 - **Dual vector store** — Qdrant (primary) or ChromaDB (Docker-free fallback)
 - **Incremental updates** — SHA-256 hashing skips unchanged files
-- **21 curated collections** — covering .NET, Python, Rust, architecture, security, AI/ML, edge, robotics, and more
+- **20 curated collections** — covering .NET, Python, Rust, architecture, security, AI/ML, edge, robotics, and more
 - **Private collections** — add your own sources via user config without touching the project
 - **Layered configuration** — project `config.toml` deep-merged with `~/.config/grounded-code-mcp/config.toml`
 
@@ -281,7 +281,7 @@ get_source_info(
 
 ## Collections
 
-21 curated collections covering the domains I work in. Each maps a `sources/` subdirectory to a collection name.
+20 curated collections covering the domains I work in. Each maps a `sources/` subdirectory to a collection name.
 
 | Directory | Collection | What belongs here |
 |-----------|-----------|-------------------|
@@ -304,7 +304,6 @@ get_source_info(
 | `sources/langsmith` | `langsmith` | LangSmith — tracing, evaluation, datasets, prompt engineering |
 | `sources/langchain` | `langchain` | LangChain LCEL, chains, agents, retrievers, RAG patterns |
 | `sources/langgraph` | `langgraph` | LangGraph — state machines, agent graphs, multi-agent orchestration |
-| `sources/ssis` | `ssis` | SQL Server Integration Services — packages, control flow, deployment |
 | `sources/api-design` | `api_design` | REST API design — Zalando, Google AIP, Microsoft guidelines |
 
 Add private collections in `~/.config/grounded-code-mcp/config.toml` — they merge with the project list, not replace it.
