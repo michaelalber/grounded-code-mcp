@@ -30,8 +30,11 @@ This project makes those sources searchable by any MCP-compatible agent. The age
 ```
 Documents (PDF, DOCX, HTML, MD, EPUB…)
         │
+        ▼ (optional — run once on a GPU machine)
+   [ convert → .md sidecars ] ← GPU-accelerated Docling; writes foo.pdf.md next to each source
+        │
         ▼
-   [ Docling Parser ]          ← layout-aware extraction; preserves tables, code blocks
+   [ Docling Parser ]          ← layout-aware extraction; skipped automatically when sidecar exists
         │
         ▼
    [ Semantic Chunker ]        ← heading-hierarchy-aware; code-block boundaries respected
@@ -49,13 +52,15 @@ Documents (PDF, DOCX, HTML, MD, EPUB…)
 Claude Code / OpenCode / any MCP client
 ```
 
-The ingest pipeline and the MCP server are separate processes. Ingest runs on demand (`grounded-code-mcp ingest`); the server runs as a persistent subprocess managed by the MCP client.
+The pipeline has three separate processes. `convert` is a one-time GPU step that produces Markdown sidecars. `ingest` reads those sidecars (or parses documents directly when no sidecar exists) and upserts chunks into the vector store. The MCP server runs as a persistent subprocess managed by the MCP client.
 
 ---
 
 ## Features
 
 - **Multi-format ingestion** — PDF, DOCX, PPTX, HTML, Markdown, AsciiDoc, EPUB via Docling
+- **GPU-accelerated pre-convert** — `convert` command processes binary documents to Markdown sidecars; subsequent `ingest` runs read the sidecar and skip Docling entirely, making ingest CPU-only and fast after the first pass
+- **Crash-isolated batch conversion** — each file is converted in its own subprocess; a Docling PDF crash doesn't abort the whole batch
 - **Code-aware chunking** — preserves code blocks, tables, and heading hierarchy
 - **Local embeddings** — Ollama with snowflake-arctic-embed2 (1024 dimensions, 8K context)
 - **Dual vector store** — Qdrant (primary) or ChromaDB (Docker-free fallback)
@@ -137,6 +142,34 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the full collection workflow.
 
 ## Usage
 
+### Pre-convert documents (GPU-accelerated)
+
+`convert` runs Docling on binary sources (PDF, DOCX, EPUB, PPTX) and writes a `.md` sidecar file next to each source. When a sidecar exists, `ingest` reads it directly and skips the Docling step — making repeated ingestion fast and CPU-only.
+
+```bash
+grounded-code-mcp convert                          # all collections
+grounded-code-mcp convert --collection rust        # one collection
+grounded-code-mcp convert path/to/file.pdf         # single file
+grounded-code-mcp convert --force                  # re-convert even if sidecar already exists
+grounded-code-mcp convert --dry-run                # list files that would be converted
+grounded-code-mcp convert --no-ocr                 # disable OCR regardless of config
+```
+
+> Run `convert` before `ingest` on GPU machines. Each file is converted in an isolated subprocess — a Docling PDF crash doesn't abort the whole batch.
+
+**Optional: Flash Attention 2** — on Ampere+ GPUs with the CUDA toolkit installed:
+
+```bash
+pip install flash-attn --no-build-isolation
+```
+
+Then enable in `~/.config/grounded-code-mcp/config.toml`:
+
+```toml
+[docling]
+cuda_use_flash_attention2 = true
+```
+
 ### Ingest documents
 
 ```bash
@@ -145,7 +178,7 @@ grounded-code-mcp ingest --collection python    # one collection
 grounded-code-mcp ingest --force                # ignore manifest, re-ingest everything
 ```
 
-> Avoid parallel ingest jobs — Docling uses the GPU for PDF parsing; concurrent jobs cause CUDA OOM.
+> Avoid parallel ingest jobs — Docling uses the GPU when no sidecar is present; concurrent jobs cause CUDA OOM.
 
 ### Check status
 
@@ -333,7 +366,9 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the collection workflow and dependenc
 |---------|-----|
 | `Ollama connection error` | `ollama serve` + `curl http://localhost:11434/api/tags` to verify |
 | `Qdrant connection error` | `curl http://localhost:6333/healthz` to verify container is running |
-| Ingestion OOM / GPU crash | Run one ingest at a time — parallel Docling jobs exhaust VRAM |
+| Ingestion OOM / GPU crash | Run one ingest at a time — parallel Docling jobs exhaust VRAM; or run `convert` first so ingest is CPU-only |
+| `convert` fails on a specific file | Each file runs in an isolated subprocess; stderr shows the reason; re-run with the file path alone to debug |
+| `convert` slow without GPU speedup | Install `flash-attn` and set `cuda_use_flash_attention2 = true` in `[docling]` (Ampere+ only) |
 | Search returns no results | `grounded-code-mcp status` to verify ingestion; try `--min-score 0.3` |
 | Low relevance scores | Pass a bare collection suffix, not the full `grounded_*` name |
 
