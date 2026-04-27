@@ -1,4 +1,4 @@
-# grounded-code-mcp
+# Grounded Code MCP
 
 [![CI](https://github.com/michaelalber/grounded-code-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/michaelalber/grounded-code-mcp/actions/workflows/ci.yml)
 [![Security](https://github.com/michaelalber/grounded-code-mcp/actions/workflows/security.yml/badge.svg)](https://github.com/michaelalber/grounded-code-mcp/actions/workflows/security.yml)
