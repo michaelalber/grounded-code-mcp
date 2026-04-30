@@ -4,10 +4,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
+from grounded_code_mcp.config import Settings, VectorStoreSettings
 from grounded_code_mcp.manifest import Manifest, SourceEntry
 
 # Import the function under test — will fail until we create the module.
-from grounded_code_mcp.manifest_repair import build_repair_entries
+from grounded_code_mcp.manifest_repair import build_repair_entries, resolve_explicit_targets
 
 
 class TestBuildRepairEntries:
@@ -165,6 +168,78 @@ class TestBuildRepairEntries:
 
         # Assert
         assert entries == []
+
+
+class TestResolveExplicitTargets:
+    """Tests for resolve_explicit_targets — maps user-supplied collection
+    suffixes to ``{disk_sub_dir: full_collection_name}`` using settings.collections.
+
+    Regression: previously the resolver assumed disk_sub_dir == suffix, which
+    broke for any collection whose disk directory uses hyphens while the
+    suffix uses underscores (e.g. sources/api-design → api_design).
+    """
+
+    def _settings(self, collections: dict[str, str]) -> Settings:
+        return Settings(
+            vectorstore=VectorStoreSettings(collection_prefix="grounded_"),
+            collections=collections,
+        )
+
+    def test_uses_disk_subdir_when_suffix_differs(self) -> None:
+        """Suffix 'api_design' with disk dir 'api-design' resolves to the disk dir."""
+        # Arrange
+        settings = self._settings(
+            {
+                "sources/api-design": "api_design",
+                "sources/dotnet": "dotnet",
+            }
+        )
+
+        # Act
+        targets = resolve_explicit_targets(["api_design"], settings)
+
+        # Assert
+        assert targets == {"api-design": "grounded_api_design"}
+
+    def test_resolves_multiple_collections(self) -> None:
+        """Multiple suffixes each resolve to their own disk subdir."""
+        # Arrange
+        settings = self._settings(
+            {
+                "sources/api-design": "api_design",
+                "sources/systems-thinking": "systems_thinking",
+                "sources/dotnet": "dotnet",
+            }
+        )
+
+        # Act
+        targets = resolve_explicit_targets(["api_design", "dotnet"], settings)
+
+        # Assert
+        assert targets == {
+            "api-design": "grounded_api_design",
+            "dotnet": "grounded_dotnet",
+        }
+
+    def test_unknown_suffix_raises(self) -> None:
+        """A suffix not present in settings.collections raises ValueError."""
+        # Arrange
+        settings = self._settings({"sources/dotnet": "dotnet"})
+
+        # Act + Assert
+        with pytest.raises(ValueError, match="bogus"):
+            resolve_explicit_targets(["bogus"], settings)
+
+    def test_handles_nested_subdirectory(self) -> None:
+        """A collection mapped to a nested path keeps the full relative path as sub_dir."""
+        # Arrange
+        settings = self._settings({"sources/lang/rust": "rust"})
+
+        # Act
+        targets = resolve_explicit_targets(["rust"], settings)
+
+        # Assert
+        assert targets == {"lang/rust": "grounded_rust"}
 
 
 class TestRepairManifestIntegration:
