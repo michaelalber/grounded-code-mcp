@@ -33,7 +33,10 @@ sys.path.insert(0, str(_PROJECT_DIR / "src"))
 
 from grounded_code_mcp.config import Settings  # noqa: E402
 from grounded_code_mcp.manifest import Manifest  # noqa: E402
-from grounded_code_mcp.manifest_repair import build_repair_entries  # noqa: E402
+from grounded_code_mcp.manifest_repair import (  # noqa: E402
+    build_repair_entries,
+    resolve_explicit_targets,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -117,7 +120,11 @@ def main(argv: list[str] | None = None) -> None:
     # Determine which collections to repair
     prefix = settings.vectorstore.collection_prefix
     if args.collections:
-        targets = {suffix: f"{prefix}{suffix}" for suffix in args.collections}
+        try:
+            targets = resolve_explicit_targets(args.collections, settings)
+        except ValueError as exc:
+            print(f"ERROR: {exc}", file=sys.stderr)
+            sys.exit(2)
     else:
         # Auto-detect: repair any collection whose source dir has files but
         # the manifest has no entries for that prefix.

@@ -11,10 +11,53 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
+from grounded_code_mcp.config import Settings
 from grounded_code_mcp.manifest import SourceEntry, compute_sha256
 from grounded_code_mcp.parser import SUPPORTED_EXTENSIONS, get_file_type
 
 logger = logging.getLogger(__name__)
+
+
+def resolve_explicit_targets(
+    collections: list[str],
+    settings: Settings,
+) -> dict[str, str]:
+    """Resolve user-supplied collection suffixes to ``{disk_sub_dir: full_collection_name}``.
+
+    The disk sub-directory is taken from ``settings.collections`` rather than
+    assumed to equal the suffix, because suffixes use underscores while disk
+    directories often use hyphens (e.g. ``sources/api-design`` → ``api_design``).
+
+    Args:
+        collections: Collection suffixes the user passed on the CLI
+            (e.g. ``["api_design", "dotnet"]``).
+        settings: Loaded application settings.
+
+    Returns:
+        Mapping of relative disk sub-dir → full collection name, suitable
+        for the per-target loop in :func:`scripts.repair_manifest.main`.
+
+    Raises:
+        ValueError: If any suffix is not present in ``settings.collections``.
+    """
+    sources_dir = settings.knowledge_base.sources_dir
+    prefix = settings.vectorstore.collection_prefix
+
+    suffix_to_subdir: dict[str, str] = {}
+    for src_dir_str, suffix in settings.collections.items():
+        sub_dir = str(Path(src_dir_str).relative_to(sources_dir))
+        suffix_to_subdir[suffix] = sub_dir
+
+    targets: dict[str, str] = {}
+    for suffix in collections:
+        if suffix not in suffix_to_subdir:
+            raise ValueError(
+                f"Unknown collection suffix: {suffix!r}. "
+                f"Known suffixes: {sorted(suffix_to_subdir)}"
+            )
+        targets[suffix_to_subdir[suffix]] = f"{prefix}{suffix}"
+
+    return targets
 
 
 def build_repair_entries(
