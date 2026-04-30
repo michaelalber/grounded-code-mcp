@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import threading
+from pathlib import Path
 from typing import Any, Literal
 
 from fastmcp import FastMCP
@@ -61,7 +62,16 @@ mcp = FastMCP("grounded-code-mcp")
 _settings: Settings | None = None
 _embedder: EmbeddingClient | None = None
 _manifest: Manifest | None = None
+_manifest_mtime: float | None = None
 _init_lock = threading.Lock()
+
+
+def _read_manifest_mtime(path: Path) -> float | None:
+    """Return the mtime of *path*, or None if the file is missing/unreadable."""
+    try:
+        return path.stat().st_mtime
+    except OSError:
+        return None
 
 
 def initialize(settings: Settings | None = None) -> None:
@@ -70,14 +80,16 @@ def initialize(settings: Settings | None = None) -> None:
     Args:
         settings: Application settings. If None, loads from default locations.
     """
-    global _settings, _embedder, _manifest
+    global _settings, _embedder, _manifest, _manifest_mtime
 
     with _init_lock:
         if _settings is not None:
             return
         resolved = settings or Settings.load()
         _embedder = EmbeddingClient.from_settings(resolved.ollama)
-        _manifest = Manifest.load_or_create(resolved.knowledge_base.manifest_path)
+        manifest_path = resolved.knowledge_base.manifest_path
+        _manifest = Manifest.load_or_create(manifest_path)
+        _manifest_mtime = _read_manifest_mtime(manifest_path)
         # Assign last so other threads see a fully initialised state
         _settings = resolved
 
@@ -101,11 +113,27 @@ def get_embedder() -> EmbeddingClient:
 
 
 def get_manifest() -> Manifest:
-    """Get the manifest, initializing if needed."""
+    """Get the manifest, reloading from disk if it has changed since last load.
+
+    A CLI ingest run while the server is up writes new entries to
+    manifest.json. We detect that via st_mtime so the next MCP tool call
+    sees the fresh state without requiring a server restart.
+    """
+    global _manifest, _manifest_mtime
+
     if _manifest is None:
         initialize()
-    if _manifest is None:
+    if _manifest is None or _settings is None:
         raise RuntimeError("Failed to initialize manifest")
+
+    manifest_path = _settings.knowledge_base.manifest_path
+    current_mtime = _read_manifest_mtime(manifest_path)
+    if current_mtime is not None and (
+        _manifest_mtime is None or current_mtime > _manifest_mtime
+    ):
+        _manifest = Manifest.load_or_create(manifest_path)
+        _manifest_mtime = current_mtime
+
     return _manifest
 
 
