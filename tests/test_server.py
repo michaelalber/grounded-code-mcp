@@ -694,6 +694,94 @@ class TestLowSeverityFindings:
             assert non_loopback not in str(call)
 
 
+class TestManifestReload:
+    """get_manifest must surface manifest.json changes that happen after the
+    server initialised — otherwise a CLI ingest run while the MCP server is
+    up is invisible until the server is restarted."""
+
+    def _make_settings(self, temp_dir: Path) -> Settings:
+        (temp_dir / "sources").mkdir()
+        (temp_dir / "data").mkdir()
+        return Settings(
+            knowledge_base=KnowledgeBaseSettings(
+                sources_dir=temp_dir / "sources",
+                data_dir=temp_dir / "data",
+            )
+        )
+
+    def _bump_mtime(self, path: Path) -> None:
+        """Force the file's mtime forward — filesystems with second-level
+        resolution may otherwise report the same mtime on rapid writes."""
+        import os
+
+        future = path.stat().st_mtime + 10
+        os.utime(path, (future, future))
+
+    def test_get_manifest_reloads_when_file_changes_on_disk(self, temp_dir: Path) -> None:
+        """A manifest write from another process is reflected on the next get_manifest call."""
+        # Arrange
+        import grounded_code_mcp.server as server_module
+        from grounded_code_mcp.server import get_manifest
+
+        settings = self._make_settings(temp_dir)
+        manifest_path = settings.knowledge_base.manifest_path
+
+        initial = Manifest()
+        initial.add_entry(
+            SourceEntry(path="a.md", sha256="x", collection="grounded_x", chunk_count=1)
+        )
+        initial.save(manifest_path)
+
+        try:
+            initialize(settings)
+            assert len(get_manifest().sources) == 1
+
+            # Simulate concurrent CLI ingest writing a new entry
+            updated = Manifest.load_or_create(manifest_path)
+            updated.add_entry(
+                SourceEntry(path="b.md", sha256="y", collection="grounded_x", chunk_count=2)
+            )
+            updated.save(manifest_path)
+            self._bump_mtime(manifest_path)
+
+            # Act
+            reloaded = get_manifest()
+
+            # Assert
+            assert len(reloaded.sources) == 2
+            assert reloaded.get_entry("b.md") is not None
+        finally:
+            server_module._settings = None
+            server_module._embedder = None
+            server_module._manifest = None
+            server_module._manifest_mtime = None
+
+    def test_get_manifest_returns_cached_when_file_unchanged(self, temp_dir: Path) -> None:
+        """When manifest.json has not changed, get_manifest returns the cached object."""
+        # Arrange
+        import grounded_code_mcp.server as server_module
+        from grounded_code_mcp.server import get_manifest
+
+        settings = self._make_settings(temp_dir)
+        manifest_path = settings.knowledge_base.manifest_path
+        Manifest().save(manifest_path)
+
+        try:
+            initialize(settings)
+            first = get_manifest()
+
+            # Act
+            second = get_manifest()
+
+            # Assert — same object identity proves no reload happened
+            assert second is first
+        finally:
+            server_module._settings = None
+            server_module._embedder = None
+            server_module._manifest = None
+            server_module._manifest_mtime = None
+
+
 class TestInitialize:
     """Tests for server initialization."""
 
