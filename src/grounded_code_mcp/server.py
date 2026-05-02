@@ -128,9 +128,7 @@ def get_manifest() -> Manifest:
 
     manifest_path = _settings.knowledge_base.manifest_path
     current_mtime = _read_manifest_mtime(manifest_path)
-    if current_mtime is not None and (
-        _manifest_mtime is None or current_mtime > _manifest_mtime
-    ):
+    if current_mtime is not None and (_manifest_mtime is None or current_mtime > _manifest_mtime):
         _manifest = Manifest.load_or_create(manifest_path)
         _manifest_mtime = current_mtime
 

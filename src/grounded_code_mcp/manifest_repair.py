@@ -52,8 +52,7 @@ def resolve_explicit_targets(
     for suffix in collections:
         if suffix not in suffix_to_subdir:
             raise ValueError(
-                f"Unknown collection suffix: {suffix!r}. "
-                f"Known suffixes: {sorted(suffix_to_subdir)}"
+                f"Unknown collection suffix: {suffix!r}. Known suffixes: {sorted(suffix_to_subdir)}"
             )
         targets[suffix_to_subdir[suffix]] = f"{prefix}{suffix}"
 
