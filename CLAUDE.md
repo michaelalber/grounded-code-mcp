@@ -85,6 +85,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | 2025-02 | Separate RED / GREEN / REFACTOR commits | Verifiable TDD evidence on feature branches; RED commits never pushed to `main` |
 | 2026-04 | Removed Microsoft Learn PDF exports and Writing Style Guide from `dotnet` and `internal` collections | Live equivalents covered by the Microsoft Learn MCP; keeping static snapshots is redundant and creates drift |
 | 2026-04 | Markdown sidecars (`foo.pdf.md`) + GPU-accelerated `convert` command | Decouples expensive Docling conversion (GPU) from ingest (CPU); sidecars let `ingest` use the fast plaintext path. `flash-attn` kept out of `pyproject.toml` — manual install only, Ampere+ GPU required. |
+| 2026-05 | Removed `langchain` and `langgraph` collections | Well-covered by model training data; static snapshots create drift with fast-moving docs. `langsmith` retained (evaluation/tracing workflows are less common in training data). |
 
 ---
 
