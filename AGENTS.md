@@ -156,6 +156,13 @@ Stricter than the global standard to produce verifiable RED→GREEN evidence:
 - Never combine new tests and new production code in a single commit
 - Never push failing tests to `main` — RED commits are local / feature-branch only
 - Run `.venv/bin/pytest` before every commit
+- Before opening a PR, run the full quality gate:
+  ```bash
+  .venv/bin/ruff check src/ tests/
+  .venv/bin/ruff format --check src/ tests/
+  .venv/bin/mypy src/
+  .venv/bin/pytest
+  ```
 
 ---
 
