@@ -16,31 +16,37 @@ logger = logging.getLogger(__name__)
 
 _DEFAULT_GRAPH_PATH = Path("graph") / "concept_graph.json"
 
-VALID_DOMAINS: frozenset[str] = frozenset({
-    "architecture",
-    "testing",
-    "data-access",
-    "agent-behavior",
-    "quality",
-    "patterns",
-    "constraints",
-})
+VALID_DOMAINS: frozenset[str] = frozenset(
+    {
+        "architecture",
+        "testing",
+        "data-access",
+        "agent-behavior",
+        "quality",
+        "patterns",
+        "constraints",
+    }
+)
 
-VALID_TYPES: frozenset[str] = frozenset({
-    "pattern",
-    "principle",
-    "practice",
-    "anti-pattern",
-    "constraint",
-})
+VALID_TYPES: frozenset[str] = frozenset(
+    {
+        "pattern",
+        "principle",
+        "practice",
+        "anti-pattern",
+        "constraint",
+    }
+)
 
-VALID_RELATIONS: frozenset[str] = frozenset({
-    "depends_on",
-    "enables",
-    "conflicts_with",
-    "is_example_of",
-    "reinforces",
-})
+VALID_RELATIONS: frozenset[str] = frozenset(
+    {
+        "depends_on",
+        "enables",
+        "conflicts_with",
+        "is_example_of",
+        "reinforces",
+    }
+)
 
 
 def slugify(text: str) -> str:
@@ -58,9 +64,7 @@ class GraphStore:
     def __init__(self, path: Path | None = None) -> None:
         env_path = os.environ.get("GRAPH_JSON_PATH")
         self._path: Path = (
-            Path(env_path)
-            if env_path
-            else (path if path is not None else _DEFAULT_GRAPH_PATH)
+            Path(env_path) if env_path else (path if path is not None else _DEFAULT_GRAPH_PATH)
         )
         self._graph: Any = nx.DiGraph()
 
@@ -91,9 +95,7 @@ class GraphStore:
             return
         with open(self._path) as f:
             data: dict[str, Any] = json.load(f)
-        self._graph = nx_json.node_link_graph(
-            data, directed=True, multigraph=False, edges="edges"
-        )
+        self._graph = nx_json.node_link_graph(data, directed=True, multigraph=False, edges="edges")
 
     def save(self) -> None:
         """Persist graph to JSON, creating parent directories as needed."""

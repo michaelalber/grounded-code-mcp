@@ -1,7 +1,6 @@
 """Tests for GraphBuilder: triple parsing, idempotency, dry-run, CLI."""
 
 from pathlib import Path
-from typing import Any
 
 import pytest
 
@@ -44,7 +43,7 @@ class TestParseTriples:
         from graph.graph_builder import _parse_triples
 
         content = '"Test-Driven Development" -> depends_on -> "Red-Green-Refactor"'
-        nodes, edges, skipped = _parse_triples(content, "xp")
+        _nodes, edges, skipped = _parse_triples(content, "xp")
 
         assert skipped == 0
         assert len(edges) == 1
@@ -55,7 +54,7 @@ class TestParseTriples:
         from graph.graph_builder import _parse_triples
 
         content = '"Clean Architecture" → reinforces → "Dependency Inversion"'
-        nodes, edges, skipped = _parse_triples(content, "clean-arch-book")
+        nodes, _edges, _skipped = _parse_triples(content, "clean-arch-book")
 
         assert all(n["source_slug"] == "clean-arch-book" for n in nodes)
 
@@ -63,7 +62,7 @@ class TestParseTriples:
         from graph.graph_builder import _parse_triples
 
         content = '"Concept A" → enables → "Concept B" [external-source] [patterns] [pattern]'
-        nodes, edges, skipped = _parse_triples(content, "default-slug")
+        nodes, _edges, _skipped = _parse_triples(content, "default-slug")
 
         assert all(n["source_slug"] == "external-source" for n in nodes)
 
@@ -98,7 +97,7 @@ class TestParseTriples:
 
         content = '"A" → invented_rel → "B"'
         with caplog.at_level("WARNING"):
-            nodes, edges, skipped = _parse_triples(content, "src")
+            _nodes, edges, skipped = _parse_triples(content, "src")
 
         assert skipped == 1
         assert len(edges) == 0
@@ -116,11 +115,7 @@ class TestParseTriples:
     def test_multiple_triples_in_file(self, temp_dir: Path) -> None:
         from graph.graph_builder import _parse_triples
 
-        content = (
-            '"A" → enables → "B"\n'
-            '"B" → depends_on → "C"\n'
-            '"C" → reinforces → "A"\n'
-        )
+        content = '"A" → enables → "B"\n"B" → depends_on → "C"\n"C" → reinforces → "A"\n'
         _nodes, edges, skipped = _parse_triples(content, "src")
 
         assert skipped == 0
@@ -130,7 +125,7 @@ class TestParseTriples:
         from graph.graph_builder import _parse_triples
 
         content = '"A" → enables → "B"\n"A" → reinforces → "C"\n'
-        nodes, edges, skipped = _parse_triples(content, "src")
+        nodes, _edges, _skipped = _parse_triples(content, "src")
 
         node_ids = [n["id"] for n in nodes]
         assert node_ids.count("a") == 1
@@ -147,9 +142,7 @@ class TestBuild:
 
         src_dir = temp_dir / "tidy-first"
         src_dir.mkdir()
-        _write_relationships(
-            src_dir, '"Tidy First" → enables → "Refactoring"\n'
-        )
+        _write_relationships(src_dir, '"Tidy First" → enables → "Refactoring"\n')
 
         store = _make_store(temp_dir)
         build(src_dir, store)
@@ -234,9 +227,7 @@ class TestBuild:
         assert stats.triples_parsed == 2
         assert stats.files_processed == 1
 
-    def test_processes_multiple_relationships_files_recursively(
-        self, temp_dir: Path
-    ) -> None:
+    def test_processes_multiple_relationships_files_recursively(self, temp_dir: Path) -> None:
         from graph.graph_builder import build
 
         root = temp_dir / "sources"
@@ -285,8 +276,7 @@ class TestBuild:
         src_dir.mkdir()
         _write_relationships(
             src_dir,
-            "bad line\n"
-            '"A" → enables → "B"\n',
+            'bad line\n"A" → enables → "B"\n',
         )
 
         store = _make_store(temp_dir)
