@@ -5,7 +5,7 @@ from typing import Any
 
 import pytest
 
-from graph.graph_store import GraphStore, slugify
+from graph.graph_store import GraphStore, _validate_graph_path, slugify
 
 # ---------------------------------------------------------------------------
 # slugify
@@ -122,7 +122,32 @@ class TestLoadSave:
         env_path = temp_dir / "env_graph.json"
         monkeypatch.setenv("GRAPH_JSON_PATH", str(env_path))
         store = GraphStore()
-        assert store.path == env_path
+        assert store.path == env_path.resolve()
+
+    def test_env_var_non_json_extension_raises(
+        self, temp_dir: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("GRAPH_JSON_PATH", str(temp_dir / "graph.txt"))
+        with pytest.raises(ValueError, match=r"\.json"):
+            GraphStore()
+
+
+class TestValidateGraphPath:
+    def test_accepts_valid_json_path(self, temp_dir: Path) -> None:
+        result = _validate_graph_path(str(temp_dir / "graph.json"))
+        assert result.suffix == ".json"
+
+    def test_rejects_non_json_extension(self, temp_dir: Path) -> None:
+        with pytest.raises(ValueError, match=r"\.json"):
+            _validate_graph_path(str(temp_dir / "graph.txt"))
+
+    def test_rejects_path_traversal(self) -> None:
+        with pytest.raises(ValueError, match="traversal"):
+            _validate_graph_path("../../etc/passwd.json")
+
+    def test_resolves_to_absolute_path(self, temp_dir: Path) -> None:
+        result = _validate_graph_path(str(temp_dir / "graph.json"))
+        assert result.is_absolute()
 
 
 # ---------------------------------------------------------------------------
