@@ -90,17 +90,96 @@ class TestParseTriples:
         assert len(edges) == 0
         assert any("malformed" in r.message.lower() for r in caplog.records)
 
-    def test_unknown_relation_is_skipped_with_warning(
+    def test_any_relation_is_accepted(self, temp_dir: Path) -> None:
+        from graph.graph_builder import _parse_triples
+
+        content = '"A" → invented_rel → "B"'
+        _nodes, edges, skipped = _parse_triples(content, "src")
+
+        assert skipped == 0
+        assert len(edges) == 1
+        assert edges[0]["rel"] == "invented_rel"
+
+    def test_valid_triple_paren_format(self, temp_dir: Path) -> None:
+        from graph.graph_builder import _parse_triples
+
+        content = "(Reliability) --[IS_ACHIEVED_BY]--> (Fault Tolerance)"
+        nodes, edges, skipped = _parse_triples(content, "ddia")
+
+        assert skipped == 0
+        node_ids = {n["id"] for n in nodes}
+        assert "reliability" in node_ids
+        assert "fault-tolerance" in node_ids
+        assert len(edges) == 1
+        assert edges[0]["rel"] == "is_achieved_by"
+
+    def test_paren_format_normalises_relation_to_lowercase(self, temp_dir: Path) -> None:
+        from graph.graph_builder import _parse_triples
+
+        content = "(LSM-Tree) --[OPTIMISES_FOR]--> (Write Throughput)"
+        _nodes, edges, _skipped = _parse_triples(content, "ddia")
+
+        assert edges[0]["rel"] == "optimises_for"
+
+    def test_paren_format_slugifies_multiword_concepts(self, temp_dir: Path) -> None:
+        from graph.graph_builder import _parse_triples
+
+        content = "(Snapshot Isolation) --[PREVENTS]--> (Read Skew)"
+        nodes, _edges, _skipped = _parse_triples(content, "src")
+
+        node_ids = {n["id"] for n in nodes}
+        assert "snapshot-isolation" in node_ids
+        assert "read-skew" in node_ids
+
+    def test_fenced_code_block_markers_skipped_silently(self, temp_dir: Path) -> None:
+        from graph.graph_builder import _parse_triples
+
+        content = "```\n(A) --[ENABLES]--> (B)\n```"
+        nodes, edges, skipped = _parse_triples(content, "src")
+
+        assert skipped == 0
+        assert len(edges) == 1
+        assert len(nodes) == 2
+
+    def test_paren_format_inside_code_block_is_parsed(self, temp_dir: Path) -> None:
+        from graph.graph_builder import _parse_triples
+
+        content = (
+            "## Section\n"
+            "```\n"
+            "(Write-Ahead Log) --[ENABLES]--> (Crash Recovery)\n"
+            "(Write-Ahead Log) --[ENABLES]--> (Replication)\n"
+            "```\n"
+        )
+        _nodes, edges, skipped = _parse_triples(content, "src")
+
+        assert skipped == 0
+        assert len(edges) == 2
+
+    def test_malformed_paren_format_skipped_with_warning(
         self, temp_dir: Path, caplog: pytest.LogCaptureFixture
     ) -> None:
         from graph.graph_builder import _parse_triples
 
-        content = '"A" → invented_rel → "B"'
+        content = "(A) --[BAD_FORMAT--> (B)"
         with caplog.at_level("WARNING"):
             _nodes, edges, skipped = _parse_triples(content, "src")
 
         assert skipped == 1
         assert len(edges) == 0
+        assert any("malformed" in r.message.lower() for r in caplog.records)
+
+    def test_both_formats_in_same_file(self, temp_dir: Path) -> None:
+        from graph.graph_builder import _parse_triples
+
+        content = (
+            '"Tidy First" → enables → "Refactoring"\n'
+            "(Write-Ahead Log) --[ENABLES]--> (Crash Recovery)\n"
+        )
+        _nodes, edges, skipped = _parse_triples(content, "src")
+
+        assert skipped == 0
+        assert len(edges) == 2
 
     def test_blank_lines_and_comments_are_skipped_silently(self, temp_dir: Path) -> None:
         from graph.graph_builder import _parse_triples
@@ -294,3 +373,24 @@ class TestBuild:
 
         assert stats.files_processed == 0
         assert store.node_count == 0
+
+    def test_builds_from_paren_format_relationships_file(self, temp_dir: Path) -> None:
+        from graph.graph_builder import build
+
+        src_dir = temp_dir / "ddia"
+        src_dir.mkdir()
+        _write_relationships(
+            src_dir,
+            "```\n"
+            "(Reliability) --[IS_ACHIEVED_BY]--> (Fault Tolerance)\n"
+            "(Scalability) --[REQUIRES]--> (Load Parameters)\n"
+            "```\n",
+        )
+
+        store = _make_store(temp_dir)
+        stats = build(src_dir, store)
+
+        assert store.node_count == 4
+        assert store.edge_count == 2
+        assert stats.triples_parsed == 2
+        assert stats.triples_skipped == 0

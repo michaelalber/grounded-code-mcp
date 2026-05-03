@@ -9,15 +9,26 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from graph.graph_store import VALID_RELATIONS, GraphStore, slugify
+from graph.graph_store import GraphStore, slugify
 
 logger = logging.getLogger(__name__)
 
-# Matches: "Concept A" → rel → "Concept B" [opt1] [opt2] [opt3] [opt4]
+# Quoted format: "Concept A" → rel → "Concept B" [opt1] [opt2] [opt3] [opt4]
 # Supports both Unicode → and ASCII -> arrows.
 _ARROW = r"(?:→|->)"
 _TRIPLE_RE = re.compile(
     rf'"([^"]+)"\s*{_ARROW}\s*(\w+)\s*{_ARROW}\s*"([^"]+)"'
+    r"(?:\s*\[([^\]]*)\])?"  # source_slug
+    r"(?:\s*\[([^\]]*)\])?"  # domain
+    r"(?:\s*\[([^\]]*)\])?"  # type
+    r"(?:\s*\[([^\]]*)\])?"  # description
+)
+
+# Parenthetical format: (Concept A) --[PREDICATE]--> (Concept B) [opt1] ...
+# Relations are uppercase in distilled sources; they are normalised to lowercase.
+# Triples may appear inside fenced code blocks — fence markers are skipped silently.
+_PAREN_TRIPLE_RE = re.compile(
+    r"\(([^)]+)\)\s*--\[(\w+)\]-->\s*\(([^)]+)\)"
     r"(?:\s*\[([^\]]*)\])?"  # source_slug
     r"(?:\s*\[([^\]]*)\])?"  # domain
     r"(?:\s*\[([^\]]*)\])?"  # type
@@ -43,6 +54,13 @@ def _parse_triples(
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], int]:
     """Parse concept triples from RELATIONSHIPS.md content.
 
+    Supports two formats:
+    - Quoted:        "Concept A" → rel → "Concept B" [source] [domain] [type] [desc]
+    - Parenthetical: (Concept A) --[PREDICATE]--> (Concept B)
+
+    Relations are normalised to lowercase. Fenced code block markers (```) are
+    skipped silently. Any non-empty relation is accepted — no allowlist enforced.
+
     Returns (nodes, edges, skip_count). Nodes list contains one entry per
     unique concept id; duplicate appearances in the content are collapsed.
     """
@@ -55,8 +73,13 @@ def _parse_triples(
         line = line.strip()
         if not line or line.startswith("#"):
             continue
+        # Fenced code block markers are structural — skip silently, not as malformed triples.
+        if line.startswith("```") or line.startswith("~~~"):
+            continue
 
         m = _TRIPLE_RE.search(line)
+        if not m:
+            m = _PAREN_TRIPLE_RE.search(line)
         if not m:
             logger.warning("Skipping malformed triple: %r", line)
             skipped += 1
@@ -65,10 +88,6 @@ def _parse_triples(
         concept_a_raw, rel, concept_b_raw, raw_slug, raw_domain, raw_type, raw_desc = m.groups()
 
         rel = rel.strip().lower()
-        if rel not in VALID_RELATIONS:
-            logger.warning("Skipping triple with unknown relation %r: %r", rel, line)
-            skipped += 1
-            continue
 
         node_a_id = slugify(concept_a_raw)
         node_b_id = slugify(concept_b_raw)
