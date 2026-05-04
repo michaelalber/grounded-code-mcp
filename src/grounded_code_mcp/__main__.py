@@ -333,7 +333,9 @@ def convert(
 
 @cli.command("build-graph")
 @click.argument("path", required=False, type=click.Path(exists=True))
-@click.option("--dry-run", is_flag=True, help="Parse and validate triples without writing the graph.")
+@click.option(
+    "--dry-run", is_flag=True, help="Parse and validate triples without writing the graph."
+)
 def build_graph(path: str | None, dry_run: bool) -> None:
     """Build the concept graph from RELATIONSHIPS.md files."""
     from graph.graph_builder import BuildStats, build

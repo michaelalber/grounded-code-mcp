@@ -355,8 +355,7 @@ def _search_knowledge_impl(
 
     # --- Format and merge: vector hits first, then graph-expanded ---
     formatted: list[dict[str, Any]] = [
-        {**_format_search_results([r])[0], "retrieval_type": "[vector]"}
-        for r in vector_results
+        {**_format_search_results([r])[0], "retrieval_type": "[vector]"} for r in vector_results
     ]
     formatted.extend(
         {**_format_search_results([r])[0], "retrieval_type": f"[graph-expanded: via {via}]"}
