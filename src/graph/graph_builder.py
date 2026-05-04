@@ -181,7 +181,9 @@ def build(
         stats.files_processed += 1
         source_slug = slugify(rel_file.parent.name)
         content = rel_file.read_text(encoding="utf-8")
-        nodes, edges, skipped = _parse_triples(content, default_source_slug=source_slug, stats=stats)
+        nodes, edges, skipped = _parse_triples(
+            content, default_source_slug=source_slug, stats=stats
+        )
         stats.triples_parsed += len(edges)
         stats.triples_skipped += skipped
 

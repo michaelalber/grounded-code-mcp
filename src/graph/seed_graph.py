@@ -207,9 +207,7 @@ def find_sources_missing_relationships(sources_dir: Path) -> list[Path]:
         return []
 
     source_dirs: set[Path] = {
-        f.parent
-        for f in sources_dir.rglob("*")
-        if f.is_file() and f.name != "RELATIONSHIPS.md"
+        f.parent for f in sources_dir.rglob("*") if f.is_file() and f.name != "RELATIONSHIPS.md"
     }
 
     return sorted(d for d in source_dirs if not (d / "RELATIONSHIPS.md").exists())

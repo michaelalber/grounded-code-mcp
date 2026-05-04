@@ -321,9 +321,7 @@ class IngestionPipeline:
         rel_files = set(sources_dir.rglob("RELATIONSHIPS.md"))
         dirs_with_rel = {f.parent for f in rel_files}
         source_dirs: set[Path] = {
-            f.parent
-            for f in sources_dir.rglob("*")
-            if f.is_file() and f.name != "RELATIONSHIPS.md"
+            f.parent for f in sources_dir.rglob("*") if f.is_file() and f.name != "RELATIONSHIPS.md"
         }
         skipped = len(source_dirs - dirs_with_rel)
 
