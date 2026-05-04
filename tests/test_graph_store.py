@@ -5,7 +5,14 @@ from typing import Any
 
 import pytest
 
-from graph.graph_store import GraphStore, _validate_graph_path, slugify
+from graph.graph_store import (
+    VALID_DOMAINS,
+    VALID_RELATIONS,
+    VALID_TYPES,
+    GraphStore,
+    _validate_graph_path,
+    slugify,
+)
 
 # ---------------------------------------------------------------------------
 # slugify
@@ -435,3 +442,63 @@ class TestSearchNodes:
         store.load()
         store.merge_nodes([_make_node("cqrs")], [])
         assert store.search_nodes("zzznomatch") == []
+
+
+# ---------------------------------------------------------------------------
+# TestValidConstants
+# ---------------------------------------------------------------------------
+
+
+class TestValidConstants:
+    def test_valid_relations_contains_approved_verbs(self) -> None:
+        approved = {
+            "enables",
+            "depends-on",
+            "conflicts-with",
+            "is-an-example-of",
+            "requires",
+            "prevents",
+            "alternative-to",
+            "causes",
+            "improves",
+            "replaces",
+        }
+        for verb in approved:
+            assert verb in VALID_RELATIONS, f"{verb!r} missing from VALID_RELATIONS"
+
+    def test_valid_relations_does_not_contain_old_underscore_verbs(self) -> None:
+        old_verbs = {"reinforces", "depends_on", "conflicts_with", "is_example_of"}
+        for verb in old_verbs:
+            assert verb not in VALID_RELATIONS, f"{verb!r} should not be in VALID_RELATIONS"
+
+    def test_valid_domains_contains_new_taxonomy(self) -> None:
+        expected = {
+            "testing",
+            "dotnet",
+            "python",
+            "rust",
+            "databases",
+            "api-design",
+            "edge-ai",
+            "automation",
+            "architecture",
+            "security",
+            "javascript",
+            "ui-ux",
+            "systems-thinking",
+            "robotics",
+            "php",
+        }
+        for domain in expected:
+            assert domain in VALID_DOMAINS, f"{domain!r} missing from VALID_DOMAINS"
+
+    def test_valid_domains_does_not_contain_old_values(self) -> None:
+        old_domains = {"data-access", "agent-behavior", "quality", "patterns", "constraints"}
+        for domain in old_domains:
+            assert domain not in VALID_DOMAINS, f"{domain!r} should not be in VALID_DOMAINS"
+
+    def test_valid_types_does_not_contain_constraint(self) -> None:
+        assert "constraint" not in VALID_TYPES
+
+    def test_valid_types_contains_four_values(self) -> None:
+        assert VALID_TYPES == frozenset({"pattern", "principle", "practice", "anti-pattern"})
