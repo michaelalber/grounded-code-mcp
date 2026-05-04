@@ -310,3 +310,50 @@ class TestSeedSpecificSource:
 
         assert stats.files_written == 0
         assert (sources_dir / "rust" / "RELATIONSHIPS.md").read_text() == original
+
+
+# ---------------------------------------------------------------------------
+# TestSeedContentFormat
+# ---------------------------------------------------------------------------
+
+
+class TestSeedContentFormat:
+    def test_seed_content_uses_parenthetical_format(self, temp_dir: Path) -> None:
+        from graph.seed_graph import generate_seed_content
+
+        content = generate_seed_content("python")
+        assert "--[" in content
+        assert "-->" in content
+        assert " → " not in content, "Quoted format arrow found — should use parenthetical only"
+
+    def test_seed_content_contains_domain_tagged_section_header(self, temp_dir: Path) -> None:
+        import re
+
+        from graph.seed_graph import generate_seed_content
+
+        content = generate_seed_content("python")
+        assert re.search(r"##[^<]+<!--\s*domain:", content), (
+            "No domain-tagged section header found in seed content"
+        )
+
+    def test_seed_content_relations_are_valid(self, temp_dir: Path) -> None:
+        from dataclasses import dataclass, field
+
+        from graph.graph_builder import BuildStats, _parse_triples
+        from graph.seed_graph import _SEED_CONTENT, generate_seed_content
+
+        for slug in _SEED_CONTENT:
+            content = generate_seed_content(slug)
+            stats = BuildStats()
+            _nodes, _edges, _skipped = _parse_triples(content, slug, stats=stats)
+            assert stats.triples_invalid_rel == 0, (
+                f"Seed content for {slug!r} has {stats.triples_invalid_rel} invalid relation verb(s)"
+            )
+
+    def test_generic_template_uses_parenthetical_format(self, temp_dir: Path) -> None:
+        from graph.seed_graph import generate_seed_content
+
+        content = generate_seed_content("unknown-slug-xyz")
+        assert "--[" in content
+        assert "-->" in content
+        assert " → " not in content, "Quoted format arrow found in generic template"
