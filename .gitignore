@@ -76,5 +76,6 @@ sources/*/*
 # sources/**/*.pdf.md  sources/**/*.epub.md  sources/**/*.docx.md  etc.
 logs/
 uv.lock
+graph/concept_graph.json
 thoughts/shared/progress/
 thoughts/shared/sessions/
