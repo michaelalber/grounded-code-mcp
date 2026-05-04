@@ -317,6 +317,55 @@ Each run is idempotent: nodes for a source are replaced before new ones are inse
 
 ---
 
+## Graph RAG — CLI Reference
+
+All commands use the `grounded-code-mcp` binary installed via `pipx`. After any code change, reinstall with `pipx install . --force`.
+
+```bash
+# Full reingest — rebuilds Qdrant vectors and concept graph for all sources
+grounded-code-mcp ingest --force
+
+# Single source reingest + graph rebuild (targets one subdirectory)
+grounded-code-mcp ingest --force sources/rust
+
+# Full graph rebuild from all RELATIONSHIPS.md files (no reingest)
+grounded-code-mcp build-graph
+
+# Graph rebuild for a single source directory (no reingest)
+grounded-code-mcp build-graph sources/rust
+
+# Validate graph triples without writing (dry run, full sources)
+grounded-code-mcp build-graph --dry-run
+
+# Dry run for a single source
+grounded-code-mcp build-graph --dry-run sources/rust
+
+# Seed starter RELATIONSHIPS.md files for sources that are missing them
+python -m graph.seed_graph
+
+# Seed a single source by slug
+python -m graph.seed_graph --source rust
+
+# Dry run — preview what seed_graph would generate without writing
+python -m graph.seed_graph --dry-run
+
+# Direct graph query (CLI, not MCP) — explore the graph from the shell
+python -m graph.graph_builder --input sources/ --dry-run
+```
+
+**Env var override** — point the graph to a non-default location:
+```bash
+GRAPH_JSON_PATH=/path/to/graph.json grounded-code-mcp build-graph
+```
+
+**MCP tool** — query the graph from an AI assistant session:
+```
+query_graph(concept="cqrs", depth=2, domain="architecture")
+```
+Returns matched nodes, relationships (triples), linked source slugs, and a plain-English summary of the concept's neighbourhood.
+
+---
+
 ## Collections
 
 18 curated collections covering the domains I work in. Each maps a `sources/` subdirectory to a collection name.
