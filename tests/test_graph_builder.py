@@ -42,7 +42,7 @@ class TestParseTriples:
     def test_valid_triple_ascii_arrow(self, temp_dir: Path) -> None:
         from graph.graph_builder import _parse_triples
 
-        content = '"Test-Driven Development" -> depends_on -> "Red-Green-Refactor"'
+        content = '"Test-Driven Development" -> depends-on -> "Red-Green-Refactor"'
         _nodes, edges, skipped = _parse_triples(content, "xp")
 
         assert skipped == 0
@@ -53,7 +53,7 @@ class TestParseTriples:
     def test_uses_default_source_slug_when_not_in_triple(self, temp_dir: Path) -> None:
         from graph.graph_builder import _parse_triples
 
-        content = '"Clean Architecture" → reinforces → "Dependency Inversion"'
+        content = '"Clean Architecture" → improves → "Dependency Inversion"'
         nodes, _edges, _skipped = _parse_triples(content, "clean-arch-book")
 
         assert all(n["source_slug"] == "clean-arch-book" for n in nodes)
@@ -91,14 +91,15 @@ class TestParseTriples:
         assert any("malformed" in r.message.lower() for r in caplog.records)
 
     def test_any_relation_is_accepted(self, temp_dir: Path) -> None:
-        from graph.graph_builder import _parse_triples
+        from graph.graph_builder import BuildStats, _parse_triples
 
         content = '"A" → invented_rel → "B"'
-        _nodes, edges, skipped = _parse_triples(content, "src")
+        stats = BuildStats()
+        _nodes, edges, skipped = _parse_triples(content, "src", stats=stats)
 
         assert skipped == 0
-        assert len(edges) == 1
-        assert edges[0]["rel"] == "invented_rel"
+        assert len(edges) == 0
+        assert stats.triples_invalid_rel == 1
 
     def test_multi_word_relation_quoted_format(self, temp_dir: Path) -> None:
         from graph.graph_builder import _parse_triples
@@ -108,7 +109,7 @@ class TestParseTriples:
 
         assert skipped == 0
         assert len(edges) == 1
-        assert edges[0]["rel"] == "depends on"
+        assert edges[0]["rel"] == "depends-on"
 
     def test_multi_word_relation_phrase_quoted_format(self, temp_dir: Path) -> None:
         from graph.graph_builder import _parse_triples
@@ -118,12 +119,12 @@ class TestParseTriples:
 
         assert skipped == 0
         assert len(edges) == 1
-        assert edges[0]["rel"] == "is an example of"
+        assert edges[0]["rel"] == "is-an-example-of"
 
     def test_valid_triple_paren_format(self, temp_dir: Path) -> None:
         from graph.graph_builder import _parse_triples
 
-        content = "(Reliability) --[IS_ACHIEVED_BY]--> (Fault Tolerance)"
+        content = "(Reliability) --[ENABLES]--> (Fault Tolerance)"
         nodes, edges, skipped = _parse_triples(content, "ddia")
 
         assert skipped == 0
@@ -131,15 +132,17 @@ class TestParseTriples:
         assert "reliability" in node_ids
         assert "fault-tolerance" in node_ids
         assert len(edges) == 1
-        assert edges[0]["rel"] == "is_achieved_by"
+        assert edges[0]["rel"] == "enables"
 
     def test_paren_format_normalises_relation_to_lowercase(self, temp_dir: Path) -> None:
-        from graph.graph_builder import _parse_triples
+        from graph.graph_builder import BuildStats, _parse_triples
 
         content = "(LSM-Tree) --[OPTIMISES_FOR]--> (Write Throughput)"
-        _nodes, edges, _skipped = _parse_triples(content, "ddia")
+        stats = BuildStats()
+        _nodes, edges, _skipped = _parse_triples(content, "ddia", stats=stats)
 
-        assert edges[0]["rel"] == "optimises_for"
+        assert len(edges) == 0
+        assert stats.triples_invalid_rel == 1
 
     def test_paren_format_slugifies_multiword_concepts(self, temp_dir: Path) -> None:
         from graph.graph_builder import _parse_triples
@@ -183,39 +186,42 @@ class TestParseTriples:
         assert len(edges) == 1
 
     def test_hyphenated_relation_quoted_format(self, temp_dir: Path) -> None:
-        from graph.graph_builder import _parse_triples
+        from graph.graph_builder import BuildStats, _parse_triples
 
         content = '"indexed view" → pre-aggregates → "data"'
-        _nodes, edges, skipped = _parse_triples(content, "databases")
+        stats = BuildStats()
+        _nodes, edges, skipped = _parse_triples(content, "databases", stats=stats)
 
         assert skipped == 0
-        assert len(edges) == 1
-        assert edges[0]["rel"] == "pre-aggregates"
+        assert len(edges) == 0
+        assert stats.triples_invalid_rel == 1
 
     def test_multi_word_predicate_paren_format(self, temp_dir: Path) -> None:
-        from graph.graph_builder import _parse_triples
+        from graph.graph_builder import BuildStats, _parse_triples
 
         content = "(Least Privilege) --[REDUCES BLAST RADIUS OF]--> (Compromised Credential)"
-        _nodes, edges, skipped = _parse_triples(content, "architecture")
+        stats = BuildStats()
+        _nodes, edges, skipped = _parse_triples(content, "architecture", stats=stats)
 
         assert skipped == 0
-        assert len(edges) == 1
-        assert edges[0]["rel"] == "reduces blast radius of"
+        assert len(edges) == 0
+        assert stats.triples_invalid_rel == 1
 
     def test_list_item_prefix_stripped_before_parsing(self, temp_dir: Path) -> None:
-        from graph.graph_builder import _parse_triples
+        from graph.graph_builder import BuildStats, _parse_triples
 
         content = "- (Least Privilege) --[REDUCES_BLAST_RADIUS_OF]--> (Compromised Credential)"
-        _nodes, edges, skipped = _parse_triples(content, "architecture")
+        stats = BuildStats()
+        _nodes, edges, skipped = _parse_triples(content, "architecture", stats=stats)
 
         assert skipped == 0
-        assert len(edges) == 1
-        assert edges[0]["rel"] == "reduces_blast_radius_of"
+        assert len(edges) == 0
+        assert stats.triples_invalid_rel == 1
 
     def test_backtick_wrapped_parens_parsed(self, temp_dir: Path) -> None:
         from graph.graph_builder import _parse_triples
 
-        content = "- `(Least Privilege)` --[REDUCES_BLAST_RADIUS_OF]--> `(Compromised Credential)`"
+        content = "- `(Least Privilege)` --[ENABLES]--> `(Security)`"
         _nodes, edges, skipped = _parse_triples(content, "architecture")
 
         assert skipped == 0
@@ -297,7 +303,7 @@ class TestParseTriples:
     def test_multiple_triples_in_file(self, temp_dir: Path) -> None:
         from graph.graph_builder import _parse_triples
 
-        content = '"A" → enables → "B"\n"B" → depends_on → "C"\n"C" → reinforces → "A"\n'
+        content = '"A" → enables → "B"\n"B" → depends-on → "C"\n"C" → improves → "A"\n'
         _nodes, edges, skipped = _parse_triples(content, "src")
 
         assert skipped == 0
@@ -306,11 +312,106 @@ class TestParseTriples:
     def test_same_concept_in_multiple_triples_produces_one_node(self, temp_dir: Path) -> None:
         from graph.graph_builder import _parse_triples
 
-        content = '"A" → enables → "B"\n"A" → reinforces → "C"\n'
+        content = '"A" → enables → "B"\n"A" → improves → "C"\n'
         nodes, _edges, _skipped = _parse_triples(content, "src")
 
         node_ids = [n["id"] for n in nodes]
         assert node_ids.count("a") == 1
+
+
+    def test_section_header_domain_applied_to_following_triples(self, temp_dir: Path) -> None:
+        from graph.graph_builder import _parse_triples
+
+        content = "## Testing  <!-- domain: testing -->\n\n(tdd) --[ENABLES]--> (refactoring)\n"
+        nodes, edges, skipped = _parse_triples(content, "src")
+
+        assert skipped == 0
+        assert len(edges) == 1
+        tdd_node = next(n for n in nodes if n["id"] == "tdd")
+        assert tdd_node["domain"] == "testing"
+
+    def test_section_header_domain_overrides_previous_section(self, temp_dir: Path) -> None:
+        from graph.graph_builder import _parse_triples
+
+        content = (
+            "## Testing  <!-- domain: testing -->\n\n"
+            "(tdd) --[ENABLES]--> (refactoring)\n\n"
+            "## Architecture  <!-- domain: architecture -->\n\n"
+            "(clean-architecture) --[DEPENDS-ON]--> (dependency-inversion)\n"
+        )
+        nodes, edges, skipped = _parse_triples(content, "src")
+
+        assert len(edges) == 2
+        tdd_node = next(n for n in nodes if n["id"] == "tdd")
+        ca_node = next(n for n in nodes if n["id"] == "clean-architecture")
+        assert tdd_node["domain"] == "testing"
+        assert ca_node["domain"] == "architecture"
+
+    def test_section_domain_does_not_override_triple_inline_domain_when_present(
+        self, temp_dir: Path
+    ) -> None:
+        from graph.graph_builder import _parse_triples
+
+        content = (
+            "## Testing  <!-- domain: testing -->\n\n"
+            "(tdd) --[ENABLES]--> (refactoring) [src] [architecture] [pattern]\n"
+        )
+        nodes, _edges, _skipped = _parse_triples(content, "src")
+
+        tdd_node = next(n for n in nodes if n["id"] == "tdd")
+        # Inline tag [architecture] wins over section domain [testing]
+        assert tdd_node["domain"] == "architecture"
+
+    def test_relation_verb_normalized_to_hyphenated(self, temp_dir: Path) -> None:
+        from graph.graph_builder import _parse_triples
+
+        for verb_input in ("DEPENDS_ON", "depends on"):
+            content = f'(full-recovery) --[{verb_input}]--> (transaction-log)'
+            _nodes, edges, _skipped = _parse_triples(content, "src")
+            assert len(edges) == 1
+            assert edges[0]["rel"] == "depends-on"
+
+    def test_relation_verb_multi_word_normalized(self, temp_dir: Path) -> None:
+        from graph.graph_builder import _parse_triples
+
+        content = "(bcp) --[IS AN EXAMPLE OF]--> (bulk-data-transfer)"
+        _nodes, edges, _skipped = _parse_triples(content, "src")
+
+        assert len(edges) == 1
+        assert edges[0]["rel"] == "is-an-example-of"
+
+    def test_invalid_relation_verb_emits_warning_and_skips(
+        self, temp_dir: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        from graph.graph_builder import BuildStats, _parse_triples
+
+        content = "(a) --[INVENTED_VERB]--> (b)"
+        stats = BuildStats()
+        with caplog.at_level("WARNING"):
+            _nodes, edges, skipped = _parse_triples(content, "src", stats=stats)
+
+        assert skipped == 0
+        assert len(edges) == 0
+        assert stats.triples_invalid_rel == 1
+        assert any("invalid" in r.message.lower() for r in caplog.records)
+
+    def test_invalid_relation_verb_increments_build_stats(self, temp_dir: Path) -> None:
+        from graph.graph_builder import build
+
+        src_dir = temp_dir / "src"
+        src_dir.mkdir()
+        _write_relationships(
+            src_dir,
+            "(a) --[ENABLES]--> (b)\n(c) --[INVENTED_VERB]--> (d)\n",
+        )
+        from graph.graph_store import GraphStore
+
+        store = GraphStore(path=temp_dir / "g.json")
+        store.load()
+        stats = build(src_dir, store)
+
+        assert stats.triples_parsed == 1
+        assert stats.triples_invalid_rel == 1
 
 
 # ---------------------------------------------------------------------------
@@ -401,7 +502,7 @@ class TestBuild:
 
         src_dir = temp_dir / "src"
         src_dir.mkdir()
-        _write_relationships(src_dir, '"A" → enables → "B"\n"C" → reinforces → "D"\n')
+        _write_relationships(src_dir, '"A" → enables → "B"\n"C" → improves → "D"\n')
 
         store = _make_store(temp_dir)
         stats = build(src_dir, store, dry_run=True)
@@ -485,7 +586,7 @@ class TestBuild:
         _write_relationships(
             src_dir,
             "```\n"
-            "(Reliability) --[IS_ACHIEVED_BY]--> (Fault Tolerance)\n"
+            "(Reliability) --[ENABLES]--> (Fault Tolerance)\n"
             "(Scalability) --[REQUIRES]--> (Load Parameters)\n"
             "```\n",
         )
