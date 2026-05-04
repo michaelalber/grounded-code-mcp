@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 # Supports both Unicode → and ASCII -> arrows.
 _ARROW = r"(?:→|->)"
 _TRIPLE_RE = re.compile(
-    rf'"([^"]+)"\s*{_ARROW}\s*(\w+)\s*{_ARROW}\s*"([^"]+)"'
+    rf'"([^"]+)"\s*{_ARROW}\s*([\w][\w-]*(?:\s+[\w][\w-]*)*)\s*{_ARROW}\s*"([^"]+)"'
     r"(?:\s*\[([^\]]*)\])?"  # source_slug
     r"(?:\s*\[([^\]]*)\])?"  # domain
     r"(?:\s*\[([^\]]*)\])?"  # type
@@ -28,7 +28,7 @@ _TRIPLE_RE = re.compile(
 # Relations are uppercase in distilled sources; they are normalised to lowercase.
 # Triples may appear inside fenced code blocks — fence markers are skipped silently.
 _PAREN_TRIPLE_RE = re.compile(
-    r"\(([^)]+)\)\s*--\[(\w+)\]-->\s*\(([^)]+)\)"
+    r"\(([^)]+)\)\s*--\[([^\]]+)\]-->\s*\(([^)]+)\)"
     r"(?:\s*\[([^\]]*)\])?"  # source_slug
     r"(?:\s*\[([^\]]*)\])?"  # domain
     r"(?:\s*\[([^\]]*)\])?"  # type
@@ -73,9 +73,16 @@ def _parse_triples(
         line = line.strip()
         if not line or line.startswith("#"):
             continue
-        # Fenced code block markers are structural — skip silently, not as malformed triples.
+        # Structural markdown — skip silently, not as malformed triples.
         if line.startswith("```") or line.startswith("~~~"):
             continue
+        if line.startswith("---") or line.startswith(">") or line.startswith("<!--"):
+            continue
+        # Prose lines (no arrow) are structural context, not malformed triples.
+        if "→" not in line and "->" not in line:
+            continue
+        # Normalise: strip backtick wrapping around parenthesised concepts.
+        line = re.sub(r"`(\([^)]+\))`", r"\1", line)
 
         m = _TRIPLE_RE.search(line)
         if not m:

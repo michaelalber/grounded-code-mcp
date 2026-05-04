@@ -81,7 +81,7 @@ class TestParseTriples:
     ) -> None:
         from graph.graph_builder import _parse_triples
 
-        content = "this is not a valid triple at all"
+        content = '"A" → → "B"'  # arrow but no relation token
         with caplog.at_level("WARNING"):
             nodes, edges, skipped = _parse_triples(content, "src")
 
@@ -99,6 +99,26 @@ class TestParseTriples:
         assert skipped == 0
         assert len(edges) == 1
         assert edges[0]["rel"] == "invented_rel"
+
+    def test_multi_word_relation_quoted_format(self, temp_dir: Path) -> None:
+        from graph.graph_builder import _parse_triples
+
+        content = '"Full Recovery Model" → depends on → "Transaction Log Backup"'
+        _nodes, edges, skipped = _parse_triples(content, "databases")
+
+        assert skipped == 0
+        assert len(edges) == 1
+        assert edges[0]["rel"] == "depends on"
+
+    def test_multi_word_relation_phrase_quoted_format(self, temp_dir: Path) -> None:
+        from graph.graph_builder import _parse_triples
+
+        content = '"BCP" → is an example of → "Bulk Data Transfer"'
+        _nodes, edges, skipped = _parse_triples(content, "databases")
+
+        assert skipped == 0
+        assert len(edges) == 1
+        assert edges[0]["rel"] == "is an example of"
 
     def test_valid_triple_paren_format(self, temp_dir: Path) -> None:
         from graph.graph_builder import _parse_triples
@@ -130,6 +150,89 @@ class TestParseTriples:
         node_ids = {n["id"] for n in nodes}
         assert "snapshot-isolation" in node_ids
         assert "read-skew" in node_ids
+
+    def test_prose_line_without_arrow_skipped_silently(
+        self, temp_dir: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        from graph.graph_builder import _parse_triples
+
+        content = 'Source: some-book.pdf\nPurpose: graph-RAG ingestion.\n"A" → enables → "B"'
+        with caplog.at_level("WARNING"):
+            _nodes, edges, skipped = _parse_triples(content, "src")
+
+        assert skipped == 0
+        assert len(edges) == 1
+        assert not any("malformed" in r.message.lower() for r in caplog.records)
+
+    def test_horizontal_rule_skipped_silently(self, temp_dir: Path) -> None:
+        from graph.graph_builder import _parse_triples
+
+        content = '---\n"A" → enables → "B"\n---'
+        _nodes, edges, skipped = _parse_triples(content, "src")
+
+        assert skipped == 0
+        assert len(edges) == 1
+
+    def test_blockquote_metadata_skipped_silently(self, temp_dir: Path) -> None:
+        from graph.graph_builder import _parse_triples
+
+        content = '> Source: Some Book\n> For graph-RAG ingestion.\n"A" → enables → "B"'
+        _nodes, edges, skipped = _parse_triples(content, "src")
+
+        assert skipped == 0
+        assert len(edges) == 1
+
+    def test_hyphenated_relation_quoted_format(self, temp_dir: Path) -> None:
+        from graph.graph_builder import _parse_triples
+
+        content = '"indexed view" → pre-aggregates → "data"'
+        _nodes, edges, skipped = _parse_triples(content, "databases")
+
+        assert skipped == 0
+        assert len(edges) == 1
+        assert edges[0]["rel"] == "pre-aggregates"
+
+    def test_multi_word_predicate_paren_format(self, temp_dir: Path) -> None:
+        from graph.graph_builder import _parse_triples
+
+        content = "(Least Privilege) --[REDUCES BLAST RADIUS OF]--> (Compromised Credential)"
+        _nodes, edges, skipped = _parse_triples(content, "architecture")
+
+        assert skipped == 0
+        assert len(edges) == 1
+        assert edges[0]["rel"] == "reduces blast radius of"
+
+    def test_list_item_prefix_stripped_before_parsing(self, temp_dir: Path) -> None:
+        from graph.graph_builder import _parse_triples
+
+        content = "- (Least Privilege) --[REDUCES_BLAST_RADIUS_OF]--> (Compromised Credential)"
+        _nodes, edges, skipped = _parse_triples(content, "architecture")
+
+        assert skipped == 0
+        assert len(edges) == 1
+        assert edges[0]["rel"] == "reduces_blast_radius_of"
+
+    def test_backtick_wrapped_parens_parsed(self, temp_dir: Path) -> None:
+        from graph.graph_builder import _parse_triples
+
+        content = "- `(Least Privilege)` --[REDUCES_BLAST_RADIUS_OF]--> `(Compromised Credential)`"
+        _nodes, edges, skipped = _parse_triples(content, "architecture")
+
+        assert skipped == 0
+        assert len(edges) == 1
+
+    def test_html_comment_skipped_silently(
+        self, temp_dir: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        from graph.graph_builder import _parse_triples
+
+        content = '<!-- Distilled from: some-book.md -->\n"A" → enables → "B"'
+        with caplog.at_level("WARNING"):
+            _nodes, edges, skipped = _parse_triples(content, "src")
+
+        assert skipped == 0
+        assert len(edges) == 1
+        assert not any("malformed" in r.message.lower() for r in caplog.records)
 
     def test_fenced_code_block_markers_skipped_silently(self, temp_dir: Path) -> None:
         from graph.graph_builder import _parse_triples
@@ -355,7 +458,7 @@ class TestBuild:
         src_dir.mkdir()
         _write_relationships(
             src_dir,
-            'bad line\n"A" → enables → "B"\n',
+            '"A" → → "B"\n"A" → enables → "B"\n',  # first line has arrow but no relation
         )
 
         store = _make_store(temp_dir)
