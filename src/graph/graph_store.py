@@ -191,6 +191,14 @@ class GraphStore:
             if term in n or term in (attrs.get("description") or "").lower()
         ]
 
+    def get_edges_for_nodes(self, node_ids: set[str]) -> list[dict[str, Any]]:
+        """Return edges where both source and target are in node_ids."""
+        return [
+            {"from": src, "rel": attrs.get("rel", ""), "to": dst}
+            for src, dst, attrs in self._graph.edges(data=True)
+            if src in node_ids and dst in node_ids
+        ]
+
     # ------------------------------------------------------------------
     # Mutation methods
     # ------------------------------------------------------------------
