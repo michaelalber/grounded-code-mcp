@@ -532,13 +532,19 @@ def _query_graph_impl(
         }
 
     primary_id = concept_ids[0]
-    neighbors = graph.get_neighbors(primary_id, depth=depth)
 
-    # Resolve primary node attributes
-    primary_candidates = [m for m in graph.search_nodes(primary_id) if m["id"] == primary_id]
-    primary_node: dict[str, Any] = primary_candidates[0] if primary_candidates else {"id": primary_id}
+    # Traverse all matched concept IDs and merge their neighborhoods
+    all_nodes_dict: dict[str, dict[str, Any]] = {}
+    for cid in concept_ids:
+        candidates = [m for m in graph.search_nodes(cid) if m["id"] == cid]
+        root_node: dict[str, Any] = candidates[0] if candidates else {"id": cid}
+        all_nodes_dict[cid] = root_node
+        for neighbor in graph.get_neighbors(cid, depth=depth):
+            all_nodes_dict.setdefault(neighbor["id"], neighbor)
+    all_nodes: list[dict[str, Any]] = list(all_nodes_dict.values())
 
-    all_nodes: list[dict[str, Any]] = [primary_node, *neighbors]
+    # Keep primary_id for backward-compatible summary language
+    primary_node: dict[str, Any] = all_nodes_dict.get(primary_id, {"id": primary_id})
 
     # Optional domain filter
     if domain:
@@ -553,7 +559,13 @@ def _query_graph_impl(
     node_domain = primary_node.get("domain", "")
     neighbor_count = len(all_nodes) - 1
 
-    parts = [f"The graph describes '{primary_id}' as a {node_type}"]
+    if len(concept_ids) > 1:
+        parts = [
+            f"Graph traversal from {len(concept_ids)} matched concept(s): "
+            f"{', '.join(concept_ids[:3])}{'...' if len(concept_ids) > 3 else ''}"
+        ]
+    else:
+        parts = [f"The graph describes '{primary_id}' as a {node_type}"]
     if node_domain:
         parts.append(f"in the {node_domain} domain")
     if neighbor_count > 0:
@@ -567,6 +579,7 @@ def _query_graph_impl(
         summary += f" Key relationships: {'; '.join(rel_snippets)}."
 
     return {
+        "matched_concept_ids": concept_ids,
         "matched_nodes": [
             {
                 "id": n["id"],
@@ -672,7 +685,7 @@ def query_graph(
 
     Args:
         concept: Concept name or search term to look up in the graph.
-        depth: Traversal depth from matched node (default 2, max 3).
+        depth: Traversal depth from each matched concept node (default 2, max 3). All concepts matching the query are used as traversal roots.
         domain: Optional domain filter (e.g. "architecture", "testing").
 
     Returns:
