@@ -167,6 +167,13 @@ class IngestionPipeline:
             stats.files_failed,
         )
 
+        if force:
+            is_global = path is None
+            if is_global:
+                self._rebuild_graph_global(source_path)
+            elif source_path.is_dir():
+                self._rebuild_graph_single(source_path)
+
         return stats
 
     def _process_file(
@@ -280,6 +287,51 @@ class IngestionPipeline:
         self._save_manifest()
 
         return ("ingested", len(chunks))
+
+    def _rebuild_graph_single(self, source_dir: Path) -> None:
+        """Rebuild graph for one source directory when --force is used."""
+        from graph.graph_builder import build
+        from graph.graph_store import GraphStore, slugify
+
+        rel_file = source_dir / "RELATIONSHIPS.md"
+        source_slug = slugify(source_dir.name)
+
+        if not rel_file.exists():
+            logger.warning(
+                "No RELATIONSHIPS.md found for %s — graph not updated. Run distillation first.",
+                source_slug,
+            )
+            return
+
+        store = GraphStore()
+        store.load()
+        build(rel_file, store)
+        logger.info("Graph rebuilt for %s", source_slug)
+
+    def _rebuild_graph_global(self, sources_dir: Path) -> None:
+        """Rebuild entire graph from all RELATIONSHIPS.md files when --force is used globally."""
+        from graph.graph_builder import build
+        from graph.graph_store import GraphStore
+
+        store = GraphStore()
+        store.load()
+        stats = build(sources_dir, store)
+
+        # Count source dirs that had no RELATIONSHIPS.md
+        rel_files = set(sources_dir.rglob("RELATIONSHIPS.md"))
+        dirs_with_rel = {f.parent for f in rel_files}
+        source_dirs: set[Path] = {
+            f.parent
+            for f in sources_dir.rglob("*")
+            if f.is_file() and f.name != "RELATIONSHIPS.md"
+        }
+        skipped = len(source_dirs - dirs_with_rel)
+
+        logger.info(
+            "Graph rebuilt from %d RELATIONSHIPS.md files. %d sources skipped (no RELATIONSHIPS.md).",
+            stats.files_processed,
+            skipped,
+        )
 
     def _save_manifest(self) -> None:
         """Persist the manifest to disk.
