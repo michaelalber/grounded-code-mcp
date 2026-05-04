@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from graph.graph_store import GraphStore, slugify
+from graph.graph_store import VALID_RELATIONS, GraphStore, slugify
 
 logger = logging.getLogger(__name__)
 
@@ -43,14 +43,21 @@ class BuildStats:
     files_processed: int = 0
     triples_parsed: int = 0
     triples_skipped: int = 0
+    triples_invalid_rel: int = 0
     nodes_added: int = 0
     dry_run: bool = False
     errors: list[str] = field(default_factory=list)
 
 
+# Matches ## Section Name  <!-- domain: X --> headers
+_SECTION_DOMAIN_RE = re.compile(r"##[^<]+<!--\s*domain:\s*([\w-]+)\s*-->")
+
+
 def _parse_triples(
     content: str,
     default_source_slug: str,
+    *,
+    stats: BuildStats | None = None,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], int]:
     """Parse concept triples from RELATIONSHIPS.md content.
 
@@ -58,8 +65,13 @@ def _parse_triples(
     - Quoted:        "Concept A" → rel → "Concept B" [source] [domain] [type] [desc]
     - Parenthetical: (Concept A) --[PREDICATE]--> (Concept B)
 
-    Relations are normalised to lowercase. Fenced code block markers (```) are
-    skipped silently. Any non-empty relation is accepted — no allowlist enforced.
+    Relations are normalised: spaces and underscores replaced with hyphens, then
+    lowercased. Triples whose normalised verb is not in VALID_RELATIONS emit a WARNING
+    and are counted in stats.triples_invalid_rel; they are not added to the graph.
+
+    Section headers of the form ``## Name  <!-- domain: X -->`` set the default
+    domain for all subsequent triples until the next such header. An explicit
+    inline domain tag on a triple overrides the section domain.
 
     Returns (nodes, edges, skip_count). Nodes list contains one entry per
     unique concept id; duplicate appearances in the content are collapsed.
@@ -68,10 +80,17 @@ def _parse_triples(
     edges: list[dict[str, Any]] = []
     skipped = 0
     seen_node_ids: set[str] = set()
+    current_section_domain: str = ""
 
     for line in content.splitlines():
         line = line.strip()
-        if not line or line.startswith("#"):
+        # Track section-level domain from headers like: ## Foo  <!-- domain: X -->
+        if line.startswith("#"):
+            m_sec = _SECTION_DOMAIN_RE.search(line)
+            if m_sec:
+                current_section_domain = m_sec.group(1).strip()
+            continue
+        if not line:
             continue
         # Structural markdown — skip silently, not as malformed triples.
         if line.startswith("```") or line.startswith("~~~"):
@@ -94,12 +113,23 @@ def _parse_triples(
 
         concept_a_raw, rel, concept_b_raw, raw_slug, raw_domain, raw_type, raw_desc = m.groups()
 
-        rel = rel.strip().lower()
+        # Normalize verb: spaces and underscores → hyphens, then lowercase
+        rel_normalized = re.sub(r"[\s_]+", "-", rel).lower()
+
+        if rel_normalized not in VALID_RELATIONS:
+            logger.warning(
+                "Invalid relation verb %r (normalized: %r) — skipping triple", rel, rel_normalized
+            )
+            if stats is not None:
+                stats.triples_invalid_rel += 1
+            continue
+        rel = rel_normalized
 
         node_a_id = slugify(concept_a_raw)
         node_b_id = slugify(concept_b_raw)
         source_slug = slugify(raw_slug) if raw_slug and raw_slug.strip() else default_source_slug
-        domain = raw_domain.strip() if raw_domain and raw_domain.strip() else ""
+        # Inline domain tag wins; section domain is the fallback
+        domain = raw_domain.strip() if raw_domain and raw_domain.strip() else current_section_domain
         node_type = raw_type.strip() if raw_type and raw_type.strip() else ""
         description = raw_desc.strip() if raw_desc and raw_desc.strip() else ""
 
@@ -151,7 +181,7 @@ def build(
         stats.files_processed += 1
         source_slug = slugify(rel_file.parent.name)
         content = rel_file.read_text(encoding="utf-8")
-        nodes, edges, skipped = _parse_triples(content, default_source_slug=source_slug)
+        nodes, edges, skipped = _parse_triples(content, default_source_slug=source_slug, stats=stats)
         stats.triples_parsed += len(edges)
         stats.triples_skipped += skipped
 
@@ -190,7 +220,8 @@ def main() -> None:
     print(  # noqa: T201
         f"{prefix}{stats.files_processed} files, "
         f"{stats.triples_parsed} triples, "
-        f"{stats.triples_skipped} skipped"
+        f"{stats.triples_skipped} skipped, "
+        f"{stats.triples_invalid_rel} invalid verbs skipped"
         + ("" if args.dry_run else f", {stats.nodes_added} nodes added")
     )
 
