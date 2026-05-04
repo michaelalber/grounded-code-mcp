@@ -183,8 +183,7 @@ class TestForceSingleSourceWithoutRelationships:
             pipeline.ingest(source_dir, force=True)
 
         assert any(
-            "orphan-source" in r.message and "RELATIONSHIPS.md" in r.message
-            for r in caplog.records
+            "orphan-source" in r.message and "RELATIONSHIPS.md" in r.message for r in caplog.records
         )
 
     def test_ingest_still_succeeds_when_no_relationships_file(

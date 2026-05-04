@@ -501,4 +501,4 @@ class TestValidConstants:
         assert "constraint" not in VALID_TYPES
 
     def test_valid_types_contains_four_values(self) -> None:
-        assert VALID_TYPES == frozenset({"pattern", "principle", "practice", "anti-pattern"})
+        assert frozenset({"pattern", "principle", "practice", "anti-pattern"}) == VALID_TYPES
