@@ -463,6 +463,80 @@ class TestQueryGraphKnownConcept:
         assert "enables" in result["summary"]
 
 
+    def test_multi_concept_match_traverses_all_roots(self, temp_dir: Path) -> None:
+        graph = _make_graph_store(
+            temp_dir,
+            [
+                _make_node("tdd"),
+                _make_node("tdd-cycle"),
+                _make_node("refactoring"),
+            ],
+            [
+                _make_edge("tdd", "refactoring", "enables"),
+                _make_edge("tdd-cycle", "refactoring", "enables"),
+            ],
+        )
+
+        with patch("grounded_code_mcp.server._get_graph_store", return_value=graph):
+            result = _query_graph_impl("tdd", depth=2)
+
+        node_ids = {n["id"] for n in result["matched_nodes"]}
+        # "tdd" substring matches both "tdd" and "tdd-cycle" — both roots traversed
+        assert "tdd" in node_ids
+        assert "tdd-cycle" in node_ids
+        assert "refactoring" in node_ids
+
+    def test_matched_concept_ids_in_result(self, temp_dir: Path) -> None:
+        graph = _make_graph_store(
+            temp_dir,
+            [_make_node("cqrs")],
+            [],
+        )
+
+        with patch("grounded_code_mcp.server._get_graph_store", return_value=graph):
+            result = _query_graph_impl("cqrs", depth=1)
+
+        assert "matched_concept_ids" in result
+        assert len(result["matched_concept_ids"]) > 0
+
+    def test_multi_root_linked_sources_are_merged(self, temp_dir: Path) -> None:
+        graph = _make_graph_store(
+            temp_dir,
+            [
+                _make_node("tdd", source_slug="xp-book"),
+                _make_node("tdd-cycle", source_slug="tdd-book"),
+                _make_node("refactoring", source_slug="refactoring-book"),
+            ],
+            [
+                _make_edge("tdd", "refactoring", "enables"),
+                _make_edge("tdd-cycle", "refactoring", "enables"),
+            ],
+        )
+
+        with patch("grounded_code_mcp.server._get_graph_store", return_value=graph):
+            result = _query_graph_impl("tdd", depth=2)
+
+        assert "xp-book" in result["linked_sources"]
+        assert "tdd-book" in result["linked_sources"]
+
+    def test_summary_lists_all_matched_concepts(self, temp_dir: Path) -> None:
+        graph = _make_graph_store(
+            temp_dir,
+            [
+                _make_node("tdd-practice"),
+                _make_node("tdd-cycle"),
+            ],
+            [],
+        )
+
+        with patch("grounded_code_mcp.server._get_graph_store", return_value=graph):
+            result = _query_graph_impl("tdd", depth=1)
+
+        # "tdd" substring matches both "tdd-practice" and "tdd-cycle" (no exact node)
+        # Summary should mention multi-root traversal
+        assert "2" in result["summary"] or "tdd-cycle" in result["summary"]
+
+
 class TestQueryGraphUnknownConcept:
     def test_unknown_concept_returns_empty_collections(self, temp_dir: Path) -> None:
         graph = _make_graph_store(temp_dir, [_make_node("cqrs")], [])
