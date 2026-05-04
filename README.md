@@ -28,23 +28,23 @@ This project makes those sources searchable by any MCP-compatible agent. The age
 ## Architecture
 
 ```
-Documents (PDF, DOCX, HTML, MD, EPUB…)
-        │
-        ▼ (optional — run once on a GPU machine)
-   [ convert → .md sidecars ] ← GPU-accelerated Docling; writes foo.pdf.md next to each source
-        │
-        ▼
-   [ Docling Parser ]          ← layout-aware extraction; skipped automatically when sidecar exists
-        │
-        ▼
-   [ Semantic Chunker ]        ← heading-hierarchy-aware; code-block boundaries respected
-        │
-        ▼
-   [ Ollama Embedder ]         ← snowflake-arctic-embed2, 1024-dim, fully local
-        │
-        ▼
-   [ Qdrant / ChromaDB ]       ← persistent vector store; SHA-256 manifest for incremental updates
-        │
+Documents (PDF, DOCX, HTML, MD, EPUB…)   RELATIONSHIPS.md files
+        │                                         │
+        ▼ (optional — run once on a GPU machine)  │
+   [ convert → .md sidecars ]                     │
+        │                                         │
+        ▼                                         ▼
+   [ Docling Parser ]                    [ GraphBuilder parser ]
+        │                                         │
+        ▼                                         │
+   [ Semantic Chunker ]                           │
+        │                                         │
+        ▼                                         ▼
+   [ Ollama Embedder ]               [ NetworkX DiGraph (JSON) ]
+        │                                         │
+        ▼                                         │
+   [ Qdrant / ChromaDB ]─────────────────────────┘
+        │                    vector + graph
         ▼
    [ FastMCP Server ]          ← 5 MCP tools: search_knowledge, search_code_examples,
         │                         list_collections, list_sources, get_source_info
@@ -52,12 +52,13 @@ Documents (PDF, DOCX, HTML, MD, EPUB…)
 Claude Code / OpenCode / any MCP client
 ```
 
-The pipeline has three separate processes. `convert` is a one-time GPU step that produces Markdown sidecars. `ingest` reads those sidecars (or parses documents directly when no sidecar exists) and upserts chunks into the vector store. The MCP server runs as a persistent subprocess managed by the MCP client.
+The pipeline has three separate processes. `convert` is a one-time GPU step that produces Markdown sidecars. `ingest` reads those sidecars (or parses documents directly when no sidecar exists) and upserts chunks into the vector store. `graph_builder` parses `RELATIONSHIPS.md` files from knowledge sources and builds a persistent concept graph. The MCP server runs as a persistent subprocess managed by the MCP client.
 
 ---
 
 ## Features
 
+- **Concept graph (Graph RAG)** — a NetworkX DiGraph extracted from `RELATIONSHIPS.md` files in each knowledge source; captures named relationships between concepts and enables graph-traversal-augmented retrieval alongside vector search
 - **Multi-format ingestion** — PDF, DOCX, PPTX, HTML, Markdown, AsciiDoc, EPUB via Docling
 - **GPU-accelerated pre-convert** — `convert` command processes binary documents to Markdown sidecars; subsequent `ingest` runs read the sidecar and skip Docling entirely, making ingest CPU-only and fast after the first pass
 - **Crash-isolated batch conversion** — each file is converted in its own subprocess; a Docling PDF crash doesn't abort the whole batch
@@ -65,7 +66,7 @@ The pipeline has three separate processes. `convert` is a one-time GPU step that
 - **Local embeddings** — Ollama with snowflake-arctic-embed2 (1024 dimensions, 8K context)
 - **Dual vector store** — Qdrant (primary) or ChromaDB (Docker-free fallback)
 - **Incremental updates** — SHA-256 hashing skips unchanged files
-- **20 curated collections** — covering .NET, Python, Rust, architecture, security, AI/ML, edge, robotics, and more
+- **18 curated collections** — covering .NET, Python, Rust, architecture, security, AI/ML, edge, robotics, and more
 - **Private collections** — add your own sources via user config without touching the project
 - **Layered configuration** — project `config.toml` deep-merged with `~/.config/grounded-code-mcp/config.toml`
 
@@ -279,9 +280,46 @@ get_source_info(
 
 ---
 
+## Concept Graph (Graph RAG)
+
+Alongside vector embeddings, grounded-code-mcp builds a concept graph from `RELATIONSHIPS.md` files in each knowledge source. The graph is a directed NetworkX `DiGraph` persisted as JSON — it captures named relationships between concepts and enables graph-traversal-augmented retrieval: find related concepts by walking the graph, not just by cosine distance.
+
+### RELATIONSHIPS.md formats
+
+Two formats are supported in the same file:
+
+**Quoted format** (general purpose):
+```
+"Concept A" → enables → "Concept B" [source-slug] [domain] [type] [optional description]
+```
+
+**Parenthetical format** (used by distilled sources, predicates normalised to lowercase):
+```
+(Concept A) --[PREDICATE]--> (Concept B)
+```
+
+Triples may appear as bare lines or inside fenced code blocks. Any relation name is accepted — there is no fixed allowlist.
+
+### Building the graph
+
+```bash
+# Validate without writing
+python -m graph.graph_builder --input sources/ --dry-run
+
+# Build and persist (default: graph/concept_graph.json)
+python -m graph.graph_builder --input sources/
+
+# Point to a specific output file
+GRAPH_JSON_PATH=/path/to/graph.json python -m graph.graph_builder --input sources/
+```
+
+Each run is idempotent: nodes for a source are replaced before new ones are inserted, so re-running on the same input produces the same result.
+
+---
+
 ## Collections
 
-20 curated collections covering the domains I work in. Each maps a `sources/` subdirectory to a collection name.
+18 curated collections covering the domains I work in. Each maps a `sources/` subdirectory to a collection name.
 
 | Directory | Collection | What belongs here |
 |-----------|-----------|-------------------|
@@ -302,8 +340,6 @@ get_source_info(
 | `sources/robotics` | `robotics` | ROS 2, MuJoCo, Isaac Lab, LeRobot, VLA models |
 | `sources/rust` | `rust` | Rust ownership, async/Tokio, Cargo, error handling, Axum |
 | `sources/langsmith` | `langsmith` | LangSmith — tracing, evaluation, datasets, prompt engineering |
-| `sources/langchain` | `langchain` | LangChain LCEL, chains, agents, retrievers, RAG patterns |
-| `sources/langgraph` | `langgraph` | LangGraph — state machines, agent graphs, multi-agent orchestration |
 | `sources/api-design` | `api_design` | REST API design — Zalando, Google AIP, Microsoft guidelines |
 
 Add private collections in `~/.config/grounded-code-mcp/config.toml` — they merge with the project list, not replace it.
@@ -338,10 +374,11 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the collection workflow and dependenc
 | MCP Framework | FastMCP `>=3.2.0` | |
 | Document Parsing | Docling | Layout-aware; handles complex PDFs |
 | Vector Store | Qdrant / ChromaDB | Qdrant primary; ChromaDB as Docker-free fallback |
+| Concept Graph | NetworkX DiGraph | Persisted as JSON; supports BFS traversal, path-finding, domain/source filtering |
 | Embeddings | Ollama + snowflake-arctic-embed2 | 1024-dim, 8K context, fully local |
 | Configuration | TOML + Pydantic | Deep-merged layered config |
 | CLI | Click + Rich | |
-| Testing | pytest | 276 tests |
+| Testing | pytest | 398 tests |
 | Linting | ruff | |
 | Type Checking | mypy | |
 | Security Scan | bandit | |
