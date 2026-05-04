@@ -331,5 +331,39 @@ def convert(
     )
 
 
+@cli.command("build-graph")
+@click.argument("path", required=False, type=click.Path(exists=True))
+@click.option("--dry-run", is_flag=True, help="Parse and validate triples without writing the graph.")
+def build_graph(path: str | None, dry_run: bool) -> None:
+    """Build the concept graph from RELATIONSHIPS.md files."""
+    from graph.graph_builder import BuildStats, build
+    from graph.graph_store import GraphStore
+
+    settings = Settings.load()
+    input_path = Path(path) if path else settings.knowledge_base.sources_dir
+
+    store = GraphStore()
+    store.load()
+
+    prefix = "[dry-run] " if dry_run else ""
+    console.print(f"[bold]{prefix}Building concept graph from:[/bold] {input_path}")
+
+    stats: BuildStats = build(input_path, store, dry_run=dry_run)
+
+    if dry_run:
+        console.print(
+            f"[dim]{stats.files_processed} files, {stats.triples_parsed} triples, "
+            f"{stats.triples_skipped} skipped (dry run — nothing written)[/dim]"
+        )
+    else:
+        console.print(f"[green]✓[/green] {stats.files_processed} files processed")
+        console.print(f"  Triples parsed: {stats.triples_parsed}")
+        console.print(f"  Triples skipped: {stats.triples_skipped}")
+        console.print(f"  Nodes added: {stats.nodes_added}")
+        if stats.errors:
+            for err in stats.errors[:5]:
+                console.print(f"  [red]Error:[/red] {err}")
+
+
 if __name__ == "__main__":
     cli()
