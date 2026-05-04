@@ -18,13 +18,21 @@ _DEFAULT_GRAPH_PATH = Path("graph") / "concept_graph.json"
 
 VALID_DOMAINS: frozenset[str] = frozenset(
     {
-        "architecture",
         "testing",
-        "data-access",
-        "agent-behavior",
-        "quality",
-        "patterns",
-        "constraints",
+        "dotnet",
+        "python",
+        "rust",
+        "databases",
+        "api-design",
+        "edge-ai",
+        "automation",
+        "architecture",
+        "security",
+        "javascript",
+        "ui-ux",
+        "systems-thinking",
+        "robotics",
+        "php",
     }
 )
 
@@ -34,17 +42,21 @@ VALID_TYPES: frozenset[str] = frozenset(
         "principle",
         "practice",
         "anti-pattern",
-        "constraint",
     }
 )
 
 VALID_RELATIONS: frozenset[str] = frozenset(
     {
-        "depends_on",
         "enables",
-        "conflicts_with",
-        "is_example_of",
-        "reinforces",
+        "depends-on",
+        "conflicts-with",
+        "is-an-example-of",
+        "requires",
+        "prevents",
+        "alternative-to",
+        "causes",
+        "improves",
+        "replaces",
     }
 )
 
