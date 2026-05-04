@@ -296,9 +296,7 @@ class TestSeedSpecificSource:
         with pytest.raises(ValueError, match="nonexistent-source"):
             seed(sources_dir, source="nonexistent-source")
 
-    def test_specific_source_already_has_relationships_is_skipped(
-        self, temp_dir: Path
-    ) -> None:
+    def test_specific_source_already_has_relationships_is_skipped(self, temp_dir: Path) -> None:
         """If the specified source already has RELATIONSHIPS.md, seed() skips it."""
         from graph.seed_graph import seed
 
@@ -337,8 +335,6 @@ class TestSeedContentFormat:
         )
 
     def test_seed_content_relations_are_valid(self, temp_dir: Path) -> None:
-        from dataclasses import dataclass, field
-
         from graph.graph_builder import BuildStats, _parse_triples
         from graph.seed_graph import _SEED_CONTENT, generate_seed_content
 

@@ -462,7 +462,6 @@ class TestQueryGraphKnownConcept:
 
         assert "enables" in result["summary"]
 
-
     def test_multi_concept_match_traverses_all_roots(self, temp_dir: Path) -> None:
         graph = _make_graph_store(
             temp_dir,

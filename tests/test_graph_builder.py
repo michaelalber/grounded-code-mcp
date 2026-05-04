@@ -318,7 +318,6 @@ class TestParseTriples:
         node_ids = [n["id"] for n in nodes]
         assert node_ids.count("a") == 1
 
-
     def test_section_header_domain_applied_to_following_triples(self, temp_dir: Path) -> None:
         from graph.graph_builder import _parse_triples
 
@@ -339,7 +338,7 @@ class TestParseTriples:
             "## Architecture  <!-- domain: architecture -->\n\n"
             "(clean-architecture) --[DEPENDS-ON]--> (dependency-inversion)\n"
         )
-        nodes, edges, skipped = _parse_triples(content, "src")
+        nodes, edges, _skipped = _parse_triples(content, "src")
 
         assert len(edges) == 2
         tdd_node = next(n for n in nodes if n["id"] == "tdd")
@@ -366,7 +365,7 @@ class TestParseTriples:
         from graph.graph_builder import _parse_triples
 
         for verb_input in ("DEPENDS_ON", "depends on"):
-            content = f'(full-recovery) --[{verb_input}]--> (transaction-log)'
+            content = f"(full-recovery) --[{verb_input}]--> (transaction-log)"
             _nodes, edges, _skipped = _parse_triples(content, "src")
             assert len(edges) == 1
             assert edges[0]["rel"] == "depends-on"
