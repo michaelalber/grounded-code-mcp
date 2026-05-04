@@ -27,100 +27,156 @@ SEED_HEADER = "<!-- SEED: auto-generated, review before committing -->"
 
 _SEED_CONTENT: dict[str, str] = {
     "internal": """\
-"Test-Driven Development" → enables → "Refactoring" [internal] [testing] [practice]
-"Red-Green-Refactor" → is_example_of → "Test-Driven Development" [internal] [testing] [practice]
-"Clean Architecture" → depends_on → "Dependency Inversion" [internal] [architecture] [principle]
-"Dependency Inversion" → enables → "Testability" [internal] [architecture] [principle]
-"Continuous Integration" → enables → "Fast Feedback" [internal] [quality] [practice]
-"Trunk-Based Development" → enables → "Continuous Integration" [internal] [quality] [practice]
-"YAGNI" → conflicts_with → "Speculative Abstraction" [internal] [quality] [principle]
-"Simple Design" → reinforces → "Test-Driven Development" [internal] [quality] [principle]
-"Boy Scout Rule" → reinforces → "Simple Design" [internal] [quality] [principle]
-"Pair Programming" → enables → "Knowledge Sharing" [internal] [quality] [practice]
+## Engineering Practices  <!-- domain: testing -->
+
+(test-driven-development) --[enables]--> (refactoring)
+(red-green-refactor) --[is-an-example-of]--> (test-driven-development)
+(continuous-integration) --[enables]--> (fast-feedback)
+(trunk-based-development) --[enables]--> (continuous-integration)
+(pair-programming) --[enables]--> (knowledge-sharing)
+
+## Architecture  <!-- domain: architecture -->
+
+(clean-architecture) --[depends-on]--> (dependency-inversion)
+(dependency-inversion) --[enables]--> (testability)
+(yagni) --[conflicts-with]--> (speculative-abstraction)
+(simple-design) --[improves]--> (test-driven-development)
+(boy-scout-rule) --[improves]--> (simple-design)
 """,
     "patterns": """\
-"CQRS" → enables → "Read-Write Separation" [patterns] [architecture] [pattern]
-"Vertical Slice" → enables → "CQRS" [patterns] [architecture] [pattern]
-"Repository Pattern" → enables → "Data Access Abstraction" [patterns] [data-access] [pattern]
-"Unit of Work" → depends_on → "Repository Pattern" [patterns] [data-access] [pattern]
-"Mediator" → enables → "Loose Coupling" [patterns] [patterns] [pattern]
-"Decorator" → is_example_of → "Open-Closed Principle" [patterns] [patterns] [pattern]
-"Factory Method" → enables → "Dependency Inversion" [patterns] [patterns] [pattern]
-"Observer" → enables → "Event-Driven Architecture" [patterns] [patterns] [pattern]
-"Strategy" → enables → "Behavioral Flexibility" [patterns] [patterns] [pattern]
-"Domain Events" → enables → "Eventual Consistency" [patterns] [architecture] [pattern]
+## Structural Patterns  <!-- domain: architecture -->
+
+(cqrs) --[enables]--> (read-write-separation)
+(vertical-slice) --[enables]--> (cqrs)
+(mediator) --[enables]--> (loose-coupling)
+(decorator) --[is-an-example-of]--> (open-closed-principle)
+(factory-method) --[enables]--> (dependency-inversion)
+(observer) --[enables]--> (event-driven-architecture)
+(strategy) --[enables]--> (behavioral-flexibility)
+(domain-events) --[enables]--> (eventual-consistency)
 """,
     "architecture": """\
-"12-Factor App" → enables → "Cloud-Native Portability" [architecture] [architecture] [principle]
-"Service Level Objective" → depends_on → "Service Level Indicator" [architecture] [architecture] [principle]
-"Circuit Breaker" → enables → "Fault Tolerance" [architecture] [architecture] [pattern]
-"Bulkhead" → enables → "Blast Radius Reduction" [architecture] [architecture] [pattern]
-"Event Sourcing" → enables → "Audit Log" [architecture] [architecture] [pattern]
-"Saga Pattern" → enables → "Distributed Transaction" [architecture] [architecture] [pattern]
-"Strangler Fig" → enables → "Incremental Migration" [architecture] [architecture] [pattern]
-"Blue-Green Deployment" → enables → "Zero Downtime" [architecture] [architecture] [practice]
-"Chaos Engineering" → enables → "Resilience Validation" [architecture] [architecture] [practice]
-"Distributed Tracing" → enables → "Observability" [architecture] [architecture] [practice]
+## Cloud-Native  <!-- domain: architecture -->
+
+(twelve-factor-app) --[enables]--> (cloud-native-portability)
+(circuit-breaker) --[enables]--> (fault-tolerance)
+(bulkhead) --[enables]--> (blast-radius-reduction)
+(strangler-fig) --[enables]--> (incremental-migration)
+
+## Reliability  <!-- domain: architecture -->
+
+(service-level-objective) --[depends-on]--> (service-level-indicator)
+(chaos-engineering) --[enables]--> (resilience-validation)
+(distributed-tracing) --[enables]--> (observability)
+(blue-green-deployment) --[enables]--> (zero-downtime)
+
+## Data  <!-- domain: architecture -->
+
+(event-sourcing) --[enables]--> (audit-log)
+(saga-pattern) --[enables]--> (distributed-transaction)
 """,
     "dotnet": """\
-"Entity Framework Core" → enables → "ORM Persistence" [dotnet] [data-access] [practice]
-"DbContext" → depends_on → "Entity Framework Core" [dotnet] [data-access] [practice]
-"Migrations" → depends_on → "DbContext" [dotnet] [data-access] [practice]
-"Minimal API" → enables → "Low-Overhead HTTP Endpoints" [dotnet] [architecture] [practice]
-"Dependency Injection" → enables → "Testability" [dotnet] [architecture] [principle]
-"IOptions" → depends_on → "Dependency Injection" [dotnet] [architecture] [practice]
-"CancellationToken" → enables → "Cooperative Cancellation" [dotnet] [quality] [practice]
-"Nullable Reference Types" → enables → "Null Safety" [dotnet] [quality] [practice]
-"Vertical Slice Architecture" → enables → "Feature Cohesion" [dotnet] [architecture] [pattern]
-"MediatR" → is_example_of → "Mediator" [dotnet] [architecture] [pattern]
+## Persistence  <!-- domain: dotnet -->
+
+(entity-framework-core) --[enables]--> (orm-persistence)
+(dbcontext) --[depends-on]--> (entity-framework-core)
+(migrations) --[depends-on]--> (dbcontext)
+
+## Design  <!-- domain: dotnet -->
+
+(minimal-api) --[enables]--> (low-overhead-http-endpoints)
+(dependency-injection) --[enables]--> (testability)
+(ioptions) --[depends-on]--> (dependency-injection)
+(vertical-slice-architecture) --[enables]--> (feature-cohesion)
+(mediatr) --[is-an-example-of]--> (mediator)
+
+## Safety  <!-- domain: dotnet -->
+
+(cancellation-token) --[enables]--> (cooperative-cancellation)
+(nullable-reference-types) --[enables]--> (null-safety)
 """,
     "python": """\
-"FastAPI" → enables → "Type-Safe HTTP API" [python] [architecture] [practice]
-"Pydantic" → enables → "Runtime Validation" [python] [quality] [practice]
-"Pydantic" → depends_on → "Type Annotations" [python] [quality] [practice]
-"pytest" → enables → "Test-Driven Development" [python] [testing] [practice]
-"asyncio" → enables → "Concurrent I/O" [python] [quality] [practice]
-"FastMCP" → is_example_of → "Model Context Protocol" [python] [architecture] [practice]
-"Dependency Injection" → enables → "Testability" [python] [architecture] [principle]
-"pyproject.toml" → enables → "Reproducible Builds" [python] [quality] [practice]
-"Ruff" → enables → "Fast Linting" [python] [quality] [practice]
-"mypy" → enables → "Static Type Checking" [python] [quality] [practice]
+## Web Frameworks  <!-- domain: python -->
+
+(fastapi) --[enables]--> (type-safe-http-api)
+(pydantic) --[enables]--> (runtime-validation)
+(pydantic) --[depends-on]--> (type-annotations)
+(fastmcp) --[is-an-example-of]--> (model-context-protocol)
+
+## Testing and Quality  <!-- domain: python -->
+
+(pytest) --[enables]--> (test-driven-development)
+(ruff) --[enables]--> (fast-linting)
+(mypy) --[enables]--> (static-type-checking)
+
+## Design  <!-- domain: python -->
+
+(asyncio) --[enables]--> (concurrent-io)
+(dependency-injection) --[enables]--> (testability)
+(pyproject-toml) --[enables]--> (reproducible-builds)
 """,
     "databases": """\
-"Index" → enables → "Query Performance" [databases] [data-access] [practice]
-"B-Tree Index" → is_example_of → "Index" [databases] [data-access] [pattern]
-"Covering Index" → enables → "Index-Only Scan" [databases] [data-access] [pattern]
-"Normalisation" → enables → "Data Integrity" [databases] [data-access] [principle]
-"Transaction" → enables → "ACID Guarantees" [databases] [data-access] [principle]
-"Write-Ahead Log" → enables → "Crash Recovery" [databases] [data-access] [pattern]
-"Replication" → enables → "High Availability" [databases] [data-access] [pattern]
-"Partitioning" → enables → "Horizontal Scalability" [databases] [data-access] [pattern]
-"Connection Pooling" → enables → "Resource Efficiency" [databases] [data-access] [practice]
-"Prepared Statement" → enables → "SQL Injection Prevention" [databases] [data-access] [practice]
+## Indexing  <!-- domain: databases -->
+
+(index) --[enables]--> (query-performance)
+(b-tree-index) --[is-an-example-of]--> (index)
+(covering-index) --[enables]--> (index-only-scan)
+
+## Data Integrity  <!-- domain: databases -->
+
+(normalisation) --[enables]--> (data-integrity)
+(transaction) --[enables]--> (acid-guarantees)
+(write-ahead-log) --[enables]--> (crash-recovery)
+
+## Scalability  <!-- domain: databases -->
+
+(replication) --[enables]--> (high-availability)
+(partitioning) --[enables]--> (horizontal-scalability)
+(connection-pooling) --[enables]--> (resource-efficiency)
+
+## Security  <!-- domain: databases -->
+
+(prepared-statement) --[prevents]--> (sql-injection)
 """,
     "rust": """\
-"Ownership" → enables → "Memory Safety" [rust] [quality] [principle]
-"Borrow Checker" → depends_on → "Ownership" [rust] [quality] [principle]
-"Lifetimes" → enables → "Reference Validity" [rust] [quality] [principle]
-"Traits" → enables → "Polymorphism" [rust] [patterns] [pattern]
-"async/await" → enables → "Concurrent I/O" [rust] [quality] [practice]
-"Tokio" → is_example_of → "async/await" [rust] [quality] [practice]
-"Result" → enables → "Explicit Error Handling" [rust] [quality] [principle]
-"Option" → enables → "Null Safety" [rust] [quality] [principle]
-"Cargo" → enables → "Reproducible Builds" [rust] [quality] [practice]
-"Axum" → enables → "Type-Safe HTTP API" [rust] [architecture] [practice]
+## Memory Safety  <!-- domain: rust -->
+
+(ownership) --[enables]--> (memory-safety)
+(borrow-checker) --[depends-on]--> (ownership)
+(lifetimes) --[enables]--> (reference-validity)
+
+## Type System  <!-- domain: rust -->
+
+(result) --[enables]--> (explicit-error-handling)
+(option) --[enables]--> (null-safety)
+(traits) --[enables]--> (polymorphism)
+
+## Ecosystem  <!-- domain: rust -->
+
+(async-await) --[enables]--> (concurrent-io)
+(tokio) --[is-an-example-of]--> (async-await)
+(cargo) --[enables]--> (reproducible-builds)
+(axum) --[enables]--> (type-safe-http-api)
 """,
     "edge-ai": """\
-"RAG" → enables → "Grounded Responses" [edge-ai] [architecture] [pattern]
-"Vector Store" → enables → "Semantic Search" [edge-ai] [architecture] [pattern]
-"Embedding Model" → depends_on → "Vector Store" [edge-ai] [architecture] [practice]
-"Chunking" → enables → "Retrieval Precision" [edge-ai] [architecture] [practice]
-"Semantic Similarity" → depends_on → "Embedding Model" [edge-ai] [architecture] [principle]
-"Reranking" → enables → "Search Result Quality" [edge-ai] [architecture] [practice]
-"Hallucination" → conflicts_with → "Grounded Responses" [edge-ai] [quality] [anti-pattern]
-"MCP" → enables → "Tool-Augmented LLM" [edge-ai] [architecture] [pattern]
-"Prompt Template" → enables → "Reproducible Prompting" [edge-ai] [quality] [practice]
-"Eval Suite" → enables → "Output Quality Gate" [edge-ai] [quality] [practice]
+## RAG Pipeline  <!-- domain: edge-ai -->
+
+(rag) --[enables]--> (grounded-responses)
+(vector-store) --[enables]--> (semantic-search)
+(embedding-model) --[depends-on]--> (vector-store)
+(chunking) --[enables]--> (retrieval-precision)
+(semantic-similarity) --[depends-on]--> (embedding-model)
+(reranking) --[enables]--> (search-result-quality)
+
+## Quality  <!-- domain: edge-ai -->
+
+(hallucination) --[conflicts-with]--> (grounded-responses)
+(eval-suite) --[enables]--> (output-quality-gate)
+(prompt-template) --[enables]--> (reproducible-prompting)
+
+## Architecture  <!-- domain: edge-ai -->
+
+(mcp) --[enables]--> (tool-augmented-llm)
 """,
 }
 
@@ -128,8 +184,9 @@ _SEED_CONTENT: dict[str, str] = {
 def _generic_template(source_slug: str) -> str:
     """Return a minimal starter template for unknown source slugs."""
     return (
-        f'"[Concept A]" → enables → "[Concept B]" [{source_slug}] [architecture] [principle]\n'
-        f'"[Concept B]" → depends_on → "[Concept C]" [{source_slug}] [architecture] [principle]\n'
+        "## Core Concepts  <!-- domain: architecture -->\n\n"
+        "(concept-a) --[enables]--> (concept-b)\n"
+        "(concept-b) --[depends-on]--> (concept-c)\n"
         "# TODO: replace placeholder concepts with real relationships from this source\n"
     )
 
