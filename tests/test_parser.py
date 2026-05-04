@@ -611,9 +611,11 @@ class TestScanDirectory:
         assert "CONTRIBUTING.md" in names
         assert "guide.md" in names
 
-    def test_scan_excludes_sidecar_files(self, temp_dir: Path) -> None:
-        """scan_directory skips *.*.md sidecar files (double-extension)."""
+    def test_scan_excludes_sidecar_when_parent_exists(self, temp_dir: Path) -> None:
+        """scan_directory skips *.*.md sidecars when their parent binary is present."""
+        (temp_dir / "book.pdf").write_bytes(b"%PDF-")
         (temp_dir / "book.pdf.md").write_text("# Sidecar")
+        (temp_dir / "guide.epub").write_bytes(b"PK")
         (temp_dir / "guide.epub.md").write_text("# Another sidecar")
         (temp_dir / "README.md").write_text("# Real markdown")
 
@@ -622,6 +624,17 @@ class TestScanDirectory:
 
         assert "book.pdf.md" not in names
         assert "guide.epub.md" not in names
+        assert "README.md" in names
+
+    def test_scan_includes_orphaned_sidecar(self, temp_dir: Path) -> None:
+        """scan_directory includes *.*.md sidecars when their parent binary is absent."""
+        (temp_dir / "book.pdf.md").write_text("# Orphaned sidecar — no book.pdf")
+        (temp_dir / "README.md").write_text("# Real markdown")
+
+        result = scan_directory(temp_dir)
+        names = [p.name for p in result]
+
+        assert "book.pdf.md" in names
         assert "README.md" in names
 
     def test_scan_plain_md_not_filtered_as_sidecar(self, temp_dir: Path) -> None:
