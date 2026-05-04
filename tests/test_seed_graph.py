@@ -11,7 +11,6 @@ from pathlib import Path
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -262,7 +261,7 @@ class TestSeedWrite:
         seed(sources_dir)
 
         content = (sources_dir / "internal" / "RELATIONSHIPS.md").read_text()
-        nodes, edges, skipped = _parse_triples(content, "internal")
+        _nodes, edges, skipped = _parse_triples(content, "internal")
 
         assert len(edges) > 0
         assert skipped == 0, f"Expected 0 malformed triples, got {skipped}"

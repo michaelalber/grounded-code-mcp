@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -22,7 +22,6 @@ from grounded_code_mcp.config import (
 )
 from grounded_code_mcp.embeddings import EmbeddingResult
 from grounded_code_mcp.ingest import IngestionPipeline
-
 
 # ---------------------------------------------------------------------------
 # Shared fixtures
