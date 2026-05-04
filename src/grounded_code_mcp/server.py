@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import threading
 from pathlib import Path
 from typing import Any, Literal
@@ -23,6 +24,10 @@ MIN_N_RESULTS = 1
 MIN_SCORE = 0.0
 MAX_SCORE = 1.0
 MAX_SOURCE_PATH_CHARS = 256
+
+# Graph RAG constants
+MAX_GRAPH_DEPTH = 3
+EXPANSION_N_RESULTS_DEFAULT = 5
 
 # Recognised programming languages for the code-search filter (L3).
 # Unknown values are silently ignored rather than forwarded to the store.
@@ -64,6 +69,11 @@ _embedder: EmbeddingClient | None = None
 _manifest: Manifest | None = None
 _manifest_mtime: float | None = None
 _init_lock = threading.Lock()
+
+# Graph store global state (mtime-based reload)
+_graph_store: Any = None  # GraphStore | None
+_graph_store_mtime: float | None = None
+_graph_lock = threading.Lock()
 
 
 def _read_manifest_mtime(path: Path) -> float | None:
@@ -135,6 +145,85 @@ def get_manifest() -> Manifest:
     return _manifest
 
 
+def _get_graph_store() -> Any:  # -> GraphStore | None
+    """Load or reload the concept graph from disk.
+
+    Mirrors the manifest mtime-reload pattern: the CLI may rebuild the graph
+    while the server is running; the next tool call picks up the new file
+    without requiring a server restart.  Returns None when the graph file is
+    absent or unreadable.
+    """
+    global _graph_store, _graph_store_mtime
+
+    try:
+        from graph.graph_store import GraphStore
+
+        env_path = os.environ.get("GRAPH_JSON_PATH")
+        if env_path:
+            from graph.graph_store import _validate_graph_path
+
+            graph_path = _validate_graph_path(env_path)
+        else:
+            graph_path = Path("graph") / "concept_graph.json"
+
+        if not graph_path.exists():
+            with _graph_lock:
+                _graph_store = None
+                _graph_store_mtime = None
+            return None
+
+        mtime = _read_manifest_mtime(graph_path)
+        with _graph_lock:
+            if (
+                _graph_store is None
+                or _graph_store_mtime is None
+                or (mtime is not None and mtime > _graph_store_mtime)
+            ):
+                new_store = GraphStore(path=graph_path)
+                new_store.load()
+                _graph_store = new_store
+                _graph_store_mtime = mtime
+        return _graph_store
+
+    except Exception as e:
+        logger.warning("Failed to load graph store: %s", e)
+        return None
+
+
+def _extract_concept_ids(query: str, graph: Any) -> list[str]:
+    """Match query terms against graph node IDs and descriptions.
+
+    Priority: exact slug match → substring slug match → per-word fallback.
+    """
+    from graph.graph_store import slugify
+
+    query_slug = slugify(query)
+
+    # 1. Exact slug match
+    exact = [m for m in graph.search_nodes(query_slug) if m["id"] == query_slug]
+    if exact:
+        return [exact[0]["id"]]
+
+    # 2. Substring match on full query slug
+    matches = graph.search_nodes(query_slug)
+    if matches:
+        return [m["id"] for m in matches[:5]]
+
+    # 3. Per-word fallback (skip tokens shorter than 3 chars)
+    results: list[str] = []
+    seen: set[str] = set()
+    for word in query.split():
+        word_slug = slugify(word)
+        if len(word_slug) < 3:
+            continue
+        for m in graph.search_nodes(word_slug):
+            if m["id"] not in seen:
+                seen.add(m["id"])
+                results.append(m["id"])
+
+    return results[:10]
+
+
 def _format_search_results(results: list[SearchResult]) -> list[dict[str, Any]]:
     """Format search results for tool output.
 
@@ -165,8 +254,14 @@ def _search_knowledge_impl(
     collection: str | None = None,
     n_results: int = 5,
     min_score: float = 0.3,
+    expansion_n_results: int = EXPANSION_N_RESULTS_DEFAULT,
 ) -> list[dict[str, Any]]:
-    """Search the knowledge base for relevant documentation."""
+    """Search the knowledge base with optional graph expansion.
+
+    Returns direct vector hits (labeled [vector]) first, followed by
+    graph-expanded hits (labeled [graph-expanded: via <concept>]).
+    Falls back to pure vector results when the graph is empty or unavailable.
+    """
     settings = get_settings()
 
     # M2: cap query length before sending to the embedding model
@@ -184,7 +279,7 @@ def _search_knowledge_impl(
             return [{"error": f"Unknown collection: {collection!r}"}]
 
     embedder = get_embedder()
-    store = create_vector_store(settings)
+    vstore = create_vector_store(settings)
 
     try:
         embedder.ensure_ready()
@@ -193,34 +288,81 @@ def _search_knowledge_impl(
         return [{"error": error_msg}]
 
     # Generate query embedding
-    result = embedder.embed(query, is_query=True)
-    query_embedding = result.embedding
+    embed_result = embedder.embed(query, is_query=True)
+    query_embedding = embed_result.embedding
 
     # Determine which collections to search
     if collection:
-        collections = [f"{settings.vectorstore.collection_prefix}{collection}"]
+        target_collections = [f"{settings.vectorstore.collection_prefix}{collection}"]
     else:
-        collections = store.list_collections()
+        target_collections = vstore.list_collections()
 
-    # Search all target collections
-    all_results: list[SearchResult] = []
-    for coll in collections:
+    # --- Step 1: Vector search ---
+    vector_results: list[SearchResult] = []
+    for coll in target_collections:
         try:
-            results = store.search(
-                coll,
-                query_embedding,
-                n_results=n_results,
-                min_score=min_score,
-            )
-            all_results.extend(results)
+            hits = vstore.search(coll, query_embedding, n_results=n_results, min_score=min_score)
+            vector_results.extend(hits)
         except Exception as e:
             logger.warning("Error searching collection %s: %s", coll, e)
 
-    # Sort by score and limit
-    all_results.sort(key=lambda x: x.score, reverse=True)
-    all_results = all_results[:n_results]
+    vector_results.sort(key=lambda x: x.score, reverse=True)
+    vector_results = vector_results[:n_results]
+    seen_chunk_ids: set[str] = {r.chunk_id for r in vector_results}
 
-    return _format_search_results(all_results)
+    # --- Steps 2-5: Graph expansion (gracefully skipped when graph is unavailable) ---
+    expansion_hits: list[tuple[SearchResult, str]] = []  # (result, via_concept_id)
+    try:
+        graph = _get_graph_store()
+        if graph is not None and graph.node_count > 0:
+            concept_ids = _extract_concept_ids(query, graph)
+            if concept_ids:
+                # Collect source_slugs reachable from matched concepts (depth=2)
+                expanded_slugs: dict[str, str] = {}  # source_slug -> via concept id
+                for concept_id in concept_ids:
+                    for neighbor in graph.get_neighbors(concept_id, depth=2):
+                        slug = neighbor.get("source_slug", "")
+                        if slug and slug not in expanded_slugs:
+                            expanded_slugs[slug] = concept_id
+
+                if expanded_slugs:
+                    # Broader second search; filter by source_path prefix in Python
+                    exp_limit = (n_results + expansion_n_results) * 3
+                    for coll in target_collections:
+                        try:
+                            raw = vstore.search(
+                                coll,
+                                query_embedding,
+                                n_results=exp_limit,
+                                min_score=min_score,
+                            )
+                            for hit in raw:
+                                if hit.chunk_id in seen_chunk_ids:
+                                    continue
+                                source_path = hit.metadata.get("source_path", "")
+                                for slug, via in expanded_slugs.items():
+                                    if source_path == slug or source_path.startswith(slug + "/"):
+                                        expansion_hits.append((hit, via))
+                                        seen_chunk_ids.add(hit.chunk_id)
+                                        break
+                        except Exception as e:
+                            logger.warning("Graph expansion search error for %s: %s", coll, e)
+
+                    expansion_hits.sort(key=lambda t: t[0].score, reverse=True)
+                    expansion_hits = expansion_hits[:expansion_n_results]
+    except Exception as e:
+        logger.warning("Graph expansion failed: %s", e)
+
+    # --- Format and merge: vector hits first, then graph-expanded ---
+    formatted: list[dict[str, Any]] = [
+        {**_format_search_results([r])[0], "retrieval_type": "[vector]"}
+        for r in vector_results
+    ]
+    formatted.extend(
+        {**_format_search_results([r])[0], "retrieval_type": f"[graph-expanded: via {via}]"}
+        for r, via in expansion_hits
+    )
+    return formatted
 
 
 def _search_code_examples_impl(
@@ -362,6 +504,85 @@ def _get_source_info_impl(source_path: str) -> dict[str, Any]:
     }
 
 
+def _query_graph_impl(
+    concept: str,
+    depth: int = 2,
+    domain: str | None = None,
+) -> dict[str, Any]:
+    """Query the concept graph and return structured neighborhood information."""
+    depth = max(1, min(depth, MAX_GRAPH_DEPTH))
+    concept = concept[:MAX_QUERY_CHARS]
+
+    graph = _get_graph_store()
+    if graph is None or graph.node_count == 0:
+        return {
+            "matched_nodes": [],
+            "relationships": [],
+            "linked_sources": [],
+            "summary": "No concept graph is available.",
+        }
+
+    concept_ids = _extract_concept_ids(concept, graph)
+    if not concept_ids:
+        return {
+            "matched_nodes": [],
+            "relationships": [],
+            "linked_sources": [],
+            "summary": f"No concepts matching '{concept[:200]}' found in the graph.",
+        }
+
+    primary_id = concept_ids[0]
+    neighbors = graph.get_neighbors(primary_id, depth=depth)
+
+    # Resolve primary node attributes
+    primary_candidates = [m for m in graph.search_nodes(primary_id) if m["id"] == primary_id]
+    primary_node: dict[str, Any] = primary_candidates[0] if primary_candidates else {"id": primary_id}
+
+    all_nodes: list[dict[str, Any]] = [primary_node, *neighbors]
+
+    # Optional domain filter
+    if domain:
+        all_nodes = [n for n in all_nodes if n.get("domain", "") == domain]
+
+    all_node_ids = {n["id"] for n in all_nodes}
+    relationships = graph.get_edges_for_nodes(all_node_ids)
+    linked_sources = sorted({n.get("source_slug", "") for n in all_nodes if n.get("source_slug")})
+
+    # Inline summary — no LLM call
+    node_type = primary_node.get("type", "concept") or "concept"
+    node_domain = primary_node.get("domain", "")
+    neighbor_count = len(all_nodes) - 1
+
+    parts = [f"The graph describes '{primary_id}' as a {node_type}"]
+    if node_domain:
+        parts.append(f"in the {node_domain} domain")
+    if neighbor_count > 0:
+        parts.append(f"with {neighbor_count} related concept(s) within {depth} hop(s)")
+    if linked_sources:
+        parts.append(f"sourced from: {', '.join(linked_sources)}")
+    summary = " ".join(parts) + "."
+
+    if relationships:
+        rel_snippets = [f"{r['from']} {r['rel']} {r['to']}" for r in relationships[:3]]
+        summary += f" Key relationships: {'; '.join(rel_snippets)}."
+
+    return {
+        "matched_nodes": [
+            {
+                "id": n["id"],
+                "type": n.get("type", ""),
+                "domain": n.get("domain", ""),
+                "description": n.get("description", ""),
+                "source_slug": n.get("source_slug", ""),
+            }
+            for n in all_nodes
+        ],
+        "relationships": relationships,
+        "linked_sources": linked_sources,
+        "summary": summary,
+    }
+
+
 # MCP tool wrappers
 
 
@@ -439,6 +660,28 @@ def get_source_info(source_path: str) -> dict[str, Any]:
         Source information including title, type, chunks, and ingestion date.
     """
     return _get_source_info_impl(source_path)
+
+
+@mcp.tool()
+def query_graph(
+    concept: str,
+    depth: int = 2,
+    domain: str | None = None,
+) -> dict[str, Any]:
+    """Query the concept graph for a concept and its neighborhood.
+
+    Args:
+        concept: Concept name or search term to look up in the graph.
+        depth: Traversal depth from matched node (default 2, max 3).
+        domain: Optional domain filter (e.g. "architecture", "testing").
+
+    Returns:
+        matched_nodes: Nodes matching the concept and their neighbors.
+        relationships: Edges (triples) between the matched nodes.
+        linked_sources: Source slugs reachable from matched nodes.
+        summary: Plain-English description of the concept's graph neighborhood.
+    """
+    return _query_graph_impl(concept, depth, domain)
 
 
 def run_server(
