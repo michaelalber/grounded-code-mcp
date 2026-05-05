@@ -105,5 +105,4 @@ collection_prefix = "grounded_"
 "sources/gov"                  = "gov"                  # NIST, DOE/NNSA orders, EAR/ITAR, 10 CFR 707/710/712 (HRP)
 "sources/robotics"             = "robotics"
 "sources/rust"                 = "rust"
-"sources/langsmith"            = "langsmith"
 "sources/api-design"           = "api_design"
