@@ -339,3 +339,38 @@ plain code block
         assert chunker.text_chunk_max_size == 750
         assert chunker.text_chunk_overlap == 100
         assert chunker.max_code_chunk_size == 2000
+
+    def test_code_block_single_section_no_double_newline_exceeding_max_is_split(self) -> None:
+        """A code block whose content has no \\n\\n and exceeds max_code_chunk_size must be
+        hard-split at char boundaries rather than emitted as one oversized chunk."""
+        chunker = DocumentChunker(max_code_chunk_size=100)
+        # Two single-newline-separated lines with no double newline; total ~192 chars
+        big_section = "line_" + "a" * 90 + "\n" + "line_" + "b" * 90
+        content = f"```xunknown\n{big_section}\n```"
+
+        result = chunker.chunk(content, "test.md")
+
+        code_chunks = [c for c in result if c.is_code]
+        assert len(code_chunks) >= 2, "oversized single-section code block must be split"
+        for chunk in code_chunks:
+            assert len(chunk.content) <= 100, (
+                f"code chunk exceeds max_code_chunk_size: {len(chunk.content)}"
+            )
+
+    def test_oversized_table_is_split_into_sub_tables(self) -> None:
+        """A table larger than max_code_chunk_size must be split into sub-tables, each
+        retaining the header rows and capped at max_code_chunk_size chars."""
+        chunker = DocumentChunker(max_code_chunk_size=200)
+        header = "| Col A | Col B |\n|--------|--------|\n"
+        rows = "\n".join([f"| row_{i:02d} | val_{i:02d} |" for i in range(30)])
+        table = header + rows
+        content = f"Before.\n\n{table}\n\nAfter."
+
+        result = chunker.chunk(content, "test.md")
+
+        table_chunks = [c for c in result if c.is_table]
+        assert len(table_chunks) >= 2, "oversized table must be split into multiple chunks"
+        for chunk in table_chunks:
+            assert len(chunk.content) <= 200, (
+                f"table chunk exceeds max_code_chunk_size: {len(chunk.content)}"
+            )
