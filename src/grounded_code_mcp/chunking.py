@@ -200,7 +200,7 @@ class DocumentChunker:
                     )
                 )
             elif segment["type"] == "table":
-                chunks.append(
+                chunks.extend(
                     self._create_table_chunk(
                         segment["content"],
                         segment["start"],
@@ -427,6 +427,50 @@ class DocumentChunker:
             if not section:
                 continue
 
+            # A section with no \n\n may itself exceed the limit — hard-split it.
+            if len(section) > self.max_code_chunk_size:
+                if current_chunk:
+                    chunks.append(
+                        Chunk(
+                            chunk_id=ctx.next_chunk_id(),
+                            content=current_chunk,
+                            chunk_index=ctx.current_index - 1,
+                            start_char=current_start,
+                            end_char=current_start + len(current_chunk),
+                            heading_context=ctx.get_heading_context(),
+                            is_code=True,
+                            code_language=language,
+                            source_path=ctx.source_path,
+                        )
+                    )
+                    current_chunk = ""
+                sec_offset = start_char + code.find(section)
+                pos = 0
+                while pos < len(section):
+                    slice_end = min(pos + self.max_code_chunk_size, len(section))
+                    if slice_end < len(section):
+                        boundary = section.rfind("\n", pos, slice_end)
+                        if boundary > pos:
+                            slice_end = boundary
+                    seg = section[pos:slice_end].strip()
+                    if seg:
+                        chunks.append(
+                            Chunk(
+                                chunk_id=ctx.next_chunk_id(),
+                                content=seg,
+                                chunk_index=ctx.current_index - 1,
+                                start_char=sec_offset + pos,
+                                end_char=sec_offset + slice_end,
+                                heading_context=ctx.get_heading_context(),
+                                is_code=True,
+                                code_language=language,
+                                source_path=ctx.source_path,
+                            )
+                        )
+                    pos = slice_end
+                current_start = sec_offset + len(section)
+                continue
+
             if len(current_chunk) + len(section) + 2 <= self.max_code_chunk_size:
                 if current_chunk:
                     current_chunk += "\n\n" + section
@@ -472,8 +516,12 @@ class DocumentChunker:
         table: str,
         start_char: int,
         ctx: ChunkingContext,
-    ) -> Chunk:
-        """Create a chunk for a table (tables are atomic).
+    ) -> list[Chunk]:
+        """Create chunks for a table.
+
+        Tables are kept atomic when they fit within max_code_chunk_size.
+        Larger tables are split by data rows while repeating the header so
+        each sub-chunk is a valid markdown table.
 
         Args:
             table: Table content.
@@ -481,18 +529,68 @@ class DocumentChunker:
             ctx: Chunking context.
 
         Returns:
-            Table chunk.
+            List of table chunks.
         """
-        return Chunk(
-            chunk_id=ctx.next_chunk_id(),
-            content=table.strip(),
-            chunk_index=ctx.current_index - 1,
-            start_char=start_char,
-            end_char=start_char + len(table),
-            heading_context=ctx.get_heading_context(),
-            is_table=True,
-            source_path=ctx.source_path,
-        )
+        table = table.strip()
+
+        if len(table) <= self.max_code_chunk_size:
+            return [
+                Chunk(
+                    chunk_id=ctx.next_chunk_id(),
+                    content=table,
+                    chunk_index=ctx.current_index - 1,
+                    start_char=start_char,
+                    end_char=start_char + len(table),
+                    heading_context=ctx.get_heading_context(),
+                    is_table=True,
+                    source_path=ctx.source_path,
+                )
+            ]
+
+        lines = table.split("\n")
+        # Standard markdown table: line 0 = header, line 1 = separator, line 2+ = data rows.
+        header_lines = lines[:2] if len(lines) >= 2 else lines
+        data_lines = lines[2:]
+
+        chunks: list[Chunk] = []
+        current_rows: list[str] = []
+
+        for row in data_lines:
+            candidate = "\n".join(header_lines + current_rows + [row])
+            if len(candidate) > self.max_code_chunk_size and current_rows:
+                sub_table = "\n".join(header_lines + current_rows)
+                chunks.append(
+                    Chunk(
+                        chunk_id=ctx.next_chunk_id(),
+                        content=sub_table,
+                        chunk_index=ctx.current_index - 1,
+                        start_char=start_char,
+                        end_char=start_char + len(sub_table),
+                        heading_context=ctx.get_heading_context(),
+                        is_table=True,
+                        source_path=ctx.source_path,
+                    )
+                )
+                current_rows = [row]
+            else:
+                current_rows.append(row)
+
+        if current_rows:
+            sub_table = "\n".join(header_lines + current_rows)
+            chunks.append(
+                Chunk(
+                    chunk_id=ctx.next_chunk_id(),
+                    content=sub_table,
+                    chunk_index=ctx.current_index - 1,
+                    start_char=start_char,
+                    end_char=start_char + len(sub_table),
+                    heading_context=ctx.get_heading_context(),
+                    is_table=True,
+                    source_path=ctx.source_path,
+                )
+            )
+
+        return chunks
 
     def _chunk_text(
         self,
