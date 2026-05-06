@@ -83,7 +83,9 @@
 | 2025-02 | HTTP transport binds `127.0.0.1` only | Security by default — never expose to network without explicit override |
 | 2025-02 | Separate RED / GREEN / REFACTOR commits | Verifiable TDD evidence on feature branches; RED commits never pushed to `main` |
 | 2026-04 | Removed Microsoft Learn PDF exports and Writing Style Guide from `dotnet` and `internal` collections | Live equivalents covered by the Microsoft Learn MCP; keeping static snapshots is redundant and creates drift |
-| 2026-05 | Removed `langchain` and `langgraph` collections | Well-covered by model training data; static snapshots create drift with fast-moving docs. `langsmith` retained (evaluation/tracing workflows are less common in training data). |
+| 2026-05 | Removed `langchain` and `langgraph` collections | Well-covered by model training data; static snapshots create drift with fast-moving docs. |
+| 2026-05 | Removed `langsmith` collection; LangSmith docs live in `edge_ai` | No `sources/langsmith/` directory exists — docs ingested under `sources/edge-ai/`. Orphan collection deleted. |
+| 2026-05 | Removed `rust` collection (empty) | No sources ingested yet; collection deleted until Rust sources are added. |
 
 ---
 
