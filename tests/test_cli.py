@@ -1,5 +1,6 @@
 """Tests for CLI commands."""
 
+import json as _json
 from importlib.metadata import version
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -931,3 +932,488 @@ class TestConvertCommand:
 
         cmd = mock_sub.call_args[0][0]
         assert "--no-ocr" in cmd
+
+
+# ---------------------------------------------------------------------------
+# Tests for --json flag on the existing `search` command
+# ---------------------------------------------------------------------------
+
+
+class TestSearchJsonFlag:
+    @patch("grounded_code_mcp.__main__.Settings")
+    @patch("grounded_code_mcp.embeddings.EmbeddingClient.from_settings")
+    @patch("grounded_code_mcp.vectorstore.create_vector_store")
+    def test_search_json_flag_outputs_valid_json(
+        self,
+        mock_create_store: MagicMock,
+        mock_from_settings: MagicMock,
+        mock_settings_cls: MagicMock,
+    ) -> None:
+        """--json emits a JSON array with content, score, source_path, heading_context."""
+        from grounded_code_mcp.embeddings import EmbeddingResult
+        from grounded_code_mcp.vectorstore import SearchResult
+
+        mock_settings = MagicMock()
+        mock_settings.vectorstore.collection_prefix = "grounded_"
+        mock_settings_cls.load.return_value = mock_settings
+
+        mock_embedder = MagicMock()
+        mock_embedder.ensure_ready.return_value = None
+        mock_embedder.embed.return_value = EmbeddingResult(
+            text="q", embedding=[0.1] * 10, model="test"
+        )
+        mock_from_settings.return_value = mock_embedder
+
+        mock_store = MagicMock()
+        mock_store.list_collections.return_value = ["grounded_python"]
+        mock_store.search.return_value = [
+            SearchResult(
+                chunk_id="id1",
+                content="This is content.",
+                score=0.92,
+                metadata={"source_path": "docs/guide.md", "heading_context": ["Guide", "Setup"]},
+            )
+        ]
+        mock_create_store.return_value = mock_store
+
+        runner = CliRunner()
+        result = runner.invoke(cli, ["search", "test query", "--json"])
+
+        assert result.exit_code == 0
+        data = _json.loads(result.output)
+        assert isinstance(data, list)
+        assert len(data) == 1
+        assert data[0]["content"] == "This is content."
+        assert data[0]["score"] == 0.92
+        assert data[0]["source_path"] == "docs/guide.md"
+        assert data[0]["heading_context"] == ["Guide", "Setup"]
+
+    @patch("grounded_code_mcp.__main__.Settings")
+    @patch("grounded_code_mcp.embeddings.EmbeddingClient.from_settings")
+    @patch("grounded_code_mcp.vectorstore.create_vector_store")
+    def test_search_json_no_results_outputs_empty_list(
+        self,
+        mock_create_store: MagicMock,
+        mock_from_settings: MagicMock,
+        mock_settings_cls: MagicMock,
+    ) -> None:
+        """--json with no results emits an empty JSON array."""
+        from grounded_code_mcp.embeddings import EmbeddingResult
+
+        mock_settings = MagicMock()
+        mock_settings.vectorstore.collection_prefix = "grounded_"
+        mock_settings_cls.load.return_value = mock_settings
+
+        mock_embedder = MagicMock()
+        mock_embedder.ensure_ready.return_value = None
+        mock_embedder.embed.return_value = EmbeddingResult(
+            text="q", embedding=[0.1] * 10, model="test"
+        )
+        mock_from_settings.return_value = mock_embedder
+
+        mock_store = MagicMock()
+        mock_store.list_collections.return_value = ["grounded_python"]
+        mock_store.search.return_value = []
+        mock_create_store.return_value = mock_store
+
+        runner = CliRunner()
+        result = runner.invoke(cli, ["search", "obscure query", "--json"])
+
+        assert result.exit_code == 0
+        assert _json.loads(result.output) == []
+
+    @patch("grounded_code_mcp.__main__.Settings")
+    @patch("grounded_code_mcp.embeddings.EmbeddingClient.from_settings")
+    def test_search_json_ollama_error_outputs_error_json(
+        self,
+        mock_from_settings: MagicMock,
+        mock_settings_cls: MagicMock,
+    ) -> None:
+        """--json when Ollama is unavailable emits an error JSON object."""
+        from grounded_code_mcp.embeddings import OllamaConnectionError
+
+        mock_settings_cls.load.return_value = MagicMock()
+
+        mock_embedder = MagicMock()
+        mock_embedder.ensure_ready.side_effect = OllamaConnectionError(
+            "http://localhost:11434", "Connection refused"
+        )
+        mock_from_settings.return_value = mock_embedder
+
+        runner = CliRunner()
+        result = runner.invoke(cli, ["search", "query", "--json"])
+
+        assert result.exit_code == 0
+        data = _json.loads(result.output)
+        assert isinstance(data, list)
+        assert "error" in data[0]
+
+
+# ---------------------------------------------------------------------------
+# Tests for new `search-code` command
+# ---------------------------------------------------------------------------
+
+
+class TestSearchCodeCommand:
+    def test_search_code_command_exists(self) -> None:
+        """search-code is registered and has help text."""
+        runner = CliRunner()
+        result = runner.invoke(cli, ["search-code", "--help"])
+        assert result.exit_code == 0
+        assert "code" in result.output.lower()
+
+    @patch("grounded_code_mcp.__main__.Settings")
+    @patch("grounded_code_mcp.server.initialize")
+    @patch("grounded_code_mcp.server._search_code_examples_impl")
+    def test_search_code_json_output(
+        self,
+        mock_impl: MagicMock,
+        mock_init: MagicMock,
+        mock_settings_cls: MagicMock,
+    ) -> None:
+        """--json emits a JSON array of code results."""
+        mock_impl.return_value = [
+            {
+                "code": "def foo(): pass",
+                "language": "python",
+                "source_path": "docs/api.md",
+                "heading_context": ["Functions"],
+                "score": 0.91,
+            }
+        ]
+        runner = CliRunner()
+        result = runner.invoke(cli, ["search-code", "function definition", "--json"])
+
+        assert result.exit_code == 0
+        data = _json.loads(result.output)
+        assert len(data) == 1
+        assert data[0]["language"] == "python"
+        assert data[0]["code"] == "def foo(): pass"
+
+    @patch("grounded_code_mcp.__main__.Settings")
+    @patch("grounded_code_mcp.server.initialize")
+    @patch("grounded_code_mcp.server._search_code_examples_impl")
+    def test_search_code_passes_language_and_n_results(
+        self,
+        mock_impl: MagicMock,
+        mock_init: MagicMock,
+        mock_settings_cls: MagicMock,
+    ) -> None:
+        """--language and -n are forwarded to the impl function."""
+        mock_impl.return_value = []
+        runner = CliRunner()
+        runner.invoke(cli, ["search-code", "test", "--language", "python", "-n", "3", "--json"])
+        mock_impl.assert_called_once_with("test", "python", 3)
+
+    @patch("grounded_code_mcp.__main__.Settings")
+    @patch("grounded_code_mcp.server.initialize")
+    @patch("grounded_code_mcp.server._search_code_examples_impl")
+    def test_search_code_human_output_shows_language_and_code(
+        self,
+        mock_impl: MagicMock,
+        mock_init: MagicMock,
+        mock_settings_cls: MagicMock,
+    ) -> None:
+        """Human (non-JSON) output includes language tag and code content."""
+        mock_impl.return_value = [
+            {
+                "code": "def bar(): return 42",
+                "language": "python",
+                "source_path": "docs/api.md",
+                "heading_context": ["Functions"],
+                "score": 0.85,
+            }
+        ]
+        runner = CliRunner()
+        result = runner.invoke(cli, ["search-code", "return value"])
+
+        assert result.exit_code == 0
+        assert "python" in result.output.lower()
+        assert "bar" in result.output
+
+    @patch("grounded_code_mcp.__main__.Settings")
+    @patch("grounded_code_mcp.server.initialize")
+    @patch("grounded_code_mcp.server._search_code_examples_impl")
+    def test_search_code_no_results_json_outputs_empty_list(
+        self,
+        mock_impl: MagicMock,
+        mock_init: MagicMock,
+        mock_settings_cls: MagicMock,
+    ) -> None:
+        """--json with no code results emits an empty JSON array."""
+        mock_impl.return_value = []
+        runner = CliRunner()
+        result = runner.invoke(cli, ["search-code", "obscure", "--json"])
+
+        assert result.exit_code == 0
+        assert _json.loads(result.output) == []
+
+
+# ---------------------------------------------------------------------------
+# Tests for new `list-sources` command
+# ---------------------------------------------------------------------------
+
+
+class TestListSourcesCommand:
+    def test_list_sources_command_exists(self) -> None:
+        """list-sources is registered and has help text."""
+        runner = CliRunner()
+        result = runner.invoke(cli, ["list-sources", "--help"])
+        assert result.exit_code == 0
+        assert "source" in result.output.lower()
+
+    @patch("grounded_code_mcp.__main__.Settings")
+    @patch("grounded_code_mcp.server.initialize")
+    @patch("grounded_code_mcp.server._list_sources_impl")
+    def test_list_sources_json_output(
+        self,
+        mock_impl: MagicMock,
+        mock_init: MagicMock,
+        mock_settings_cls: MagicMock,
+    ) -> None:
+        """--json emits a JSON array of source metadata dicts."""
+        mock_impl.return_value = [
+            {
+                "path": "sources/python/fastapi.pdf.md",
+                "collection": "grounded_python",
+                "file_type": "md",
+                "title": "FastAPI Docs",
+                "chunk_count": 42,
+                "ingested_at": "2026-01-01T00:00:00",
+            }
+        ]
+        runner = CliRunner()
+        result = runner.invoke(cli, ["list-sources", "--json"])
+
+        assert result.exit_code == 0
+        data = _json.loads(result.output)
+        assert len(data) == 1
+        assert data[0]["title"] == "FastAPI Docs"
+        assert data[0]["chunk_count"] == 42
+
+    @patch("grounded_code_mcp.__main__.Settings")
+    @patch("grounded_code_mcp.server.initialize")
+    @patch("grounded_code_mcp.server._list_sources_impl")
+    def test_list_sources_passes_collection_filter(
+        self,
+        mock_impl: MagicMock,
+        mock_init: MagicMock,
+        mock_settings_cls: MagicMock,
+    ) -> None:
+        """--collection bare suffix is forwarded to the impl function."""
+        mock_impl.return_value = []
+        runner = CliRunner()
+        runner.invoke(cli, ["list-sources", "--collection", "python", "--json"])
+        mock_impl.assert_called_once_with("python")
+
+    @patch("grounded_code_mcp.__main__.Settings")
+    @patch("grounded_code_mcp.server.initialize")
+    @patch("grounded_code_mcp.server._list_sources_impl")
+    def test_list_sources_human_output_shows_title_and_chunks(
+        self,
+        mock_impl: MagicMock,
+        mock_init: MagicMock,
+        mock_settings_cls: MagicMock,
+    ) -> None:
+        """Human output renders a table with title and chunk count."""
+        mock_impl.return_value = [
+            {
+                "path": "sources/python/fastapi.pdf.md",
+                "collection": "grounded_python",
+                "file_type": "md",
+                "title": "FastAPI Docs",
+                "chunk_count": 42,
+                "ingested_at": "2026-01-01T00:00:00",
+            }
+        ]
+        runner = CliRunner()
+        result = runner.invoke(cli, ["list-sources"])
+
+        assert result.exit_code == 0
+        assert "FastAPI Docs" in result.output
+        assert "42" in result.output
+
+
+# ---------------------------------------------------------------------------
+# Tests for new `source-info` command
+# ---------------------------------------------------------------------------
+
+
+class TestSourceInfoCommand:
+    def test_source_info_command_exists(self) -> None:
+        """source-info is registered and has help text."""
+        runner = CliRunner()
+        result = runner.invoke(cli, ["source-info", "--help"])
+        assert result.exit_code == 0
+        assert "source" in result.output.lower()
+
+    @patch("grounded_code_mcp.__main__.Settings")
+    @patch("grounded_code_mcp.server.initialize")
+    @patch("grounded_code_mcp.server._get_source_info_impl")
+    def test_source_info_json_output(
+        self,
+        mock_impl: MagicMock,
+        mock_init: MagicMock,
+        mock_settings_cls: MagicMock,
+    ) -> None:
+        """--json emits a JSON object with full source metadata."""
+        mock_impl.return_value = {
+            "path": "sources/python/fastapi.pdf.md",
+            "collection": "grounded_python",
+            "file_type": "md",
+            "title": "FastAPI Docs",
+            "page_count": 10,
+            "chunk_count": 42,
+            "sha256": "abc123",
+            "ingested_at": "2026-01-01T00:00:00",
+        }
+        runner = CliRunner()
+        result = runner.invoke(cli, ["source-info", "sources/python/fastapi.pdf.md", "--json"])
+
+        assert result.exit_code == 0
+        data = _json.loads(result.output)
+        assert data["title"] == "FastAPI Docs"
+        assert data["chunk_count"] == 42
+
+    @patch("grounded_code_mcp.__main__.Settings")
+    @patch("grounded_code_mcp.server.initialize")
+    @patch("grounded_code_mcp.server._get_source_info_impl")
+    def test_source_info_not_found_json_contains_error_key(
+        self,
+        mock_impl: MagicMock,
+        mock_init: MagicMock,
+        mock_settings_cls: MagicMock,
+    ) -> None:
+        """--json for a missing source emits a JSON object with an 'error' key."""
+        mock_impl.return_value = {"error": "Source not found"}
+        runner = CliRunner()
+        result = runner.invoke(cli, ["source-info", "nonexistent/path.md", "--json"])
+
+        assert result.exit_code == 0
+        data = _json.loads(result.output)
+        assert "error" in data
+
+    @patch("grounded_code_mcp.__main__.Settings")
+    @patch("grounded_code_mcp.server.initialize")
+    @patch("grounded_code_mcp.server._get_source_info_impl")
+    def test_source_info_human_output_shows_title_and_chunks(
+        self,
+        mock_impl: MagicMock,
+        mock_init: MagicMock,
+        mock_settings_cls: MagicMock,
+    ) -> None:
+        """Human output renders a table with title and chunk count."""
+        mock_impl.return_value = {
+            "path": "sources/python/fastapi.pdf.md",
+            "collection": "grounded_python",
+            "file_type": "md",
+            "title": "FastAPI Docs",
+            "page_count": 10,
+            "chunk_count": 42,
+            "sha256": "abc123",
+            "ingested_at": "2026-01-01T00:00:00",
+        }
+        runner = CliRunner()
+        result = runner.invoke(cli, ["source-info", "sources/python/fastapi.pdf.md"])
+
+        assert result.exit_code == 0
+        assert "FastAPI Docs" in result.output
+        assert "42" in result.output
+
+
+# ---------------------------------------------------------------------------
+# Tests for new `query-graph` command
+# ---------------------------------------------------------------------------
+
+
+class TestQueryGraphCommand:
+    def test_query_graph_command_exists(self) -> None:
+        """query-graph is registered and has help text."""
+        runner = CliRunner()
+        result = runner.invoke(cli, ["query-graph", "--help"])
+        assert result.exit_code == 0
+        assert "graph" in result.output.lower()
+
+    @patch("grounded_code_mcp.__main__.Settings")
+    @patch("grounded_code_mcp.server.initialize")
+    @patch("grounded_code_mcp.server._query_graph_impl")
+    def test_query_graph_json_output(
+        self,
+        mock_impl: MagicMock,
+        mock_init: MagicMock,
+        mock_settings_cls: MagicMock,
+    ) -> None:
+        """--json emits a JSON object with graph traversal results."""
+        mock_impl.return_value = {
+            "matched_concept_ids": ["dependency-injection"],
+            "matched_nodes": [
+                {
+                    "id": "dependency-injection",
+                    "type": "pattern",
+                    "domain": "design",
+                    "description": "DI pattern",
+                    "source_slug": "patterns/di",
+                }
+            ],
+            "relationships": [
+                {
+                    "from": "dependency-injection",
+                    "rel": "implements",
+                    "to": "inversion-of-control",
+                }
+            ],
+            "linked_sources": ["patterns/di"],
+            "summary": "DI is a design pattern.",
+        }
+        runner = CliRunner()
+        result = runner.invoke(cli, ["query-graph", "dependency injection", "--json"])
+
+        assert result.exit_code == 0
+        data = _json.loads(result.output)
+        assert "matched_nodes" in data
+        assert data["matched_concept_ids"] == ["dependency-injection"]
+
+    @patch("grounded_code_mcp.__main__.Settings")
+    @patch("grounded_code_mcp.server.initialize")
+    @patch("grounded_code_mcp.server._query_graph_impl")
+    def test_query_graph_passes_depth_and_domain(
+        self,
+        mock_impl: MagicMock,
+        mock_init: MagicMock,
+        mock_settings_cls: MagicMock,
+    ) -> None:
+        """--depth and --domain are forwarded to the impl function."""
+        mock_impl.return_value = {
+            "matched_nodes": [],
+            "relationships": [],
+            "linked_sources": [],
+            "summary": "",
+        }
+        runner = CliRunner()
+        runner.invoke(
+            cli, ["query-graph", "concept", "--depth", "3", "--domain", "design", "--json"]
+        )
+        mock_impl.assert_called_once_with("concept", 3, "design")
+
+    @patch("grounded_code_mcp.__main__.Settings")
+    @patch("grounded_code_mcp.server.initialize")
+    @patch("grounded_code_mcp.server._query_graph_impl")
+    def test_query_graph_human_output_shows_summary(
+        self,
+        mock_impl: MagicMock,
+        mock_init: MagicMock,
+        mock_settings_cls: MagicMock,
+    ) -> None:
+        """Human output includes the summary line from the impl result."""
+        mock_impl.return_value = {
+            "matched_concept_ids": [],
+            "matched_nodes": [],
+            "relationships": [],
+            "linked_sources": [],
+            "summary": "No concept graph is available.",
+        }
+        runner = CliRunner()
+        result = runner.invoke(cli, ["query-graph", "unknown concept"])
+
+        assert result.exit_code == 0
+        assert "No concept graph" in result.output

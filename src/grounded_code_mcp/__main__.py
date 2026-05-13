@@ -1,5 +1,6 @@
 """CLI entry point for grounded-code-mcp."""
 
+import json as _json
 import subprocess  # nosec B404
 import sys
 from pathlib import Path
@@ -160,7 +161,10 @@ def serve(debug: bool, transport: str | None, host: str, port: int) -> None:
 @click.option("--collection", help="Search specific collection")
 @click.option("-n", "--n-results", default=5, help="Number of results")
 @click.option("--min-score", default=0.5, help="Minimum similarity score")
-def search(query: str, collection: str | None, n_results: int, min_score: float) -> None:
+@click.option("--json", "as_json", is_flag=True, help="Output as JSON for agent/script use")
+def search(
+    query: str, collection: str | None, n_results: int, min_score: float, as_json: bool
+) -> None:
     """Search the knowledge base."""
     from grounded_code_mcp.embeddings import EmbeddingClient, get_helpful_error_message
     from grounded_code_mcp.vectorstore import create_vector_store
@@ -171,26 +175,31 @@ def search(query: str, collection: str | None, n_results: int, min_score: float)
     try:
         embedder.ensure_ready()
     except Exception as e:
-        console.print(f"[red]{get_helpful_error_message(e)}[/red]")
+        msg = get_helpful_error_message(e)
+        if as_json:
+            click.echo(_json.dumps([{"error": msg}], indent=2))
+        else:
+            console.print(f"[red]{msg}[/red]")
         return
 
     store = create_vector_store(settings)
 
-    # Generate query embedding
-    console.print(f"[dim]Searching for: {query}[/dim]\n")
+    if not as_json:
+        console.print(f"[dim]Searching for: {query}[/dim]\n")
     result = embedder.embed(query, is_query=True)
 
-    # Determine collections to search
     if collection:
         collections = [f"{settings.vectorstore.collection_prefix}{collection}"]
     else:
         collections = store.list_collections()
 
     if not collections:
-        console.print("[yellow]No collections found. Run 'ingest' first.[/yellow]")
+        if as_json:
+            click.echo(_json.dumps([], indent=2))
+        else:
+            console.print("[yellow]No collections found. Run 'ingest' first.[/yellow]")
         return
 
-    # Search
     all_results = []
     for coll in collections:
         try:
@@ -202,24 +211,38 @@ def search(query: str, collection: str | None, n_results: int, min_score: float)
             )
             all_results.extend(results)
         except Exception as e:
-            console.print(f"[yellow]Error searching {coll}: {e}[/yellow]")
+            if not as_json:
+                console.print(f"[yellow]Error searching {coll}: {e}[/yellow]")
 
-    # Sort and limit
     all_results.sort(key=lambda x: x.score, reverse=True)
     all_results = all_results[:n_results]
+
+    if as_json:
+        click.echo(
+            _json.dumps(
+                [
+                    {
+                        "content": r.content,
+                        "score": round(r.score, 4),
+                        "source_path": r.source_path,
+                        "heading_context": r.heading_context,
+                    }
+                    for r in all_results
+                ],
+                indent=2,
+            )
+        )
+        return
 
     if not all_results:
         console.print("[yellow]No results found.[/yellow]")
         return
 
-    # Display results
     for i, r in enumerate(all_results, 1):
         console.print(f"[bold cyan]Result {i}[/bold cyan] (score: {r.score:.4f})")
         console.print(f"[dim]Source: {r.source_path}[/dim]")
         if r.heading_context:
             console.print(f"[dim]Context: {' > '.join(r.heading_context)}[/dim]")
-
-        # Truncate content for display
         content = r.content[:500] + "..." if len(r.content) > 500 else r.content
         console.print(content)
         console.print()
@@ -365,6 +388,163 @@ def build_graph(path: str | None, dry_run: bool) -> None:
         if stats.errors:
             for err in stats.errors[:5]:
                 console.print(f"  [red]Error:[/red] {err}")
+
+
+@cli.command("search-code")
+@click.argument("query")
+@click.option("--language", help="Filter by programming language (e.g. python, typescript)")
+@click.option("-n", "--n-results", default=5, help="Number of results")
+@click.option("--json", "as_json", is_flag=True, help="Output as JSON for agent/script use")
+def search_code(query: str, language: str | None, n_results: int, as_json: bool) -> None:
+    """Search for code examples in the knowledge base."""
+    from grounded_code_mcp import server as _server
+
+    settings = Settings.load()
+    _server.initialize(settings)
+    results = _server._search_code_examples_impl(query, language, n_results)
+
+    if as_json:
+        click.echo(_json.dumps(results, indent=2))
+        return
+
+    if not results:
+        console.print("[yellow]No code examples found.[/yellow]")
+        return
+
+    if isinstance(results, list) and results and "error" in results[0]:
+        console.print(f"[red]{results[0]['error']}[/red]")
+        return
+
+    for i, r in enumerate(results, 1):
+        lang = r.get("language", "text")
+        source = r.get("source_path", "")
+        score = r.get("score", 0.0)
+        code = r.get("code", "")
+        context = r.get("heading_context") or []
+
+        console.print(
+            f"[bold cyan]Result {i}[/bold cyan] [[green]{lang}[/green]] (score: {score:.4f})"
+        )
+        console.print(f"[dim]Source: {source}[/dim]")
+        if context:
+            console.print(f"[dim]Context: {' > '.join(context)}[/dim]")
+        console.print(code[:800] + "..." if len(code) > 800 else code)
+        console.print()
+
+
+@cli.command("list-sources")
+@click.option("--collection", help="Filter by collection (bare suffix, e.g. 'python')")
+@click.option("--json", "as_json", is_flag=True, help="Output as JSON for agent/script use")
+def list_sources(collection: str | None, as_json: bool) -> None:
+    """List all ingested sources in the knowledge base."""
+    from grounded_code_mcp import server as _server
+
+    settings = Settings.load()
+    _server.initialize(settings)
+    results = _server._list_sources_impl(collection)
+
+    if as_json:
+        click.echo(_json.dumps(results, indent=2))
+        return
+
+    if not results:
+        console.print("[yellow]No sources found.[/yellow]")
+        return
+
+    table = Table(title="Ingested Sources")
+    table.add_column("Title", style="cyan")
+    table.add_column("Collection", style="dim")
+    table.add_column("Type", justify="center")
+    table.add_column("Chunks", justify="right")
+
+    for s in results:
+        table.add_row(
+            s.get("title") or s.get("path", ""),
+            s.get("collection", ""),
+            s.get("file_type", ""),
+            str(s.get("chunk_count", 0)),
+        )
+
+    console.print(table)
+
+
+@cli.command("source-info")
+@click.argument("source_path")
+@click.option("--json", "as_json", is_flag=True, help="Output as JSON for agent/script use")
+def source_info(source_path: str, as_json: bool) -> None:
+    """Get detailed metadata for a specific ingested source."""
+    from grounded_code_mcp import server as _server
+
+    settings = Settings.load()
+    _server.initialize(settings)
+    result = _server._get_source_info_impl(source_path)
+
+    if as_json:
+        click.echo(_json.dumps(result, indent=2))
+        return
+
+    if "error" in result:
+        console.print(f"[red]{result['error']}[/red]")
+        return
+
+    table = Table(title="Source Information")
+    table.add_column("Field", style="cyan")
+    table.add_column("Value")
+
+    for key, value in result.items():
+        table.add_row(key, str(value))
+
+    console.print(table)
+
+
+@cli.command("query-graph")
+@click.argument("concept")
+@click.option(
+    "--depth",
+    default=2,
+    type=click.IntRange(1, 3),
+    help="Graph traversal depth (1-3, default: 2)",
+)
+@click.option("--domain", help="Filter results by domain")
+@click.option("--json", "as_json", is_flag=True, help="Output as JSON for agent/script use")
+def query_graph(concept: str, depth: int, domain: str | None, as_json: bool) -> None:
+    """Query the concept graph for relationships around a concept."""
+    from grounded_code_mcp import server as _server
+
+    settings = Settings.load()
+    _server.initialize(settings)
+    result = _server._query_graph_impl(concept, depth, domain)
+
+    if as_json:
+        click.echo(_json.dumps(result, indent=2))
+        return
+
+    console.print(f"[bold]Graph Query:[/bold] {concept}\n")
+    console.print(result.get("summary", "No summary available."))
+
+    nodes = result.get("matched_nodes", [])
+    if nodes:
+        console.print(f"\n[bold]Matched Nodes ({len(nodes)}):[/bold]")
+        for node in nodes[:10]:
+            node_id = node.get("id", "")
+            node_type = node.get("type", "")
+            node_domain = node.get("domain", "")
+            desc = node.get("description", "")
+            console.print(
+                f"  [cyan]{node_id}[/cyan] [{node_type}]"
+                + (f" ({node_domain})" if node_domain else "")
+            )
+            if desc:
+                console.print(f"    [dim]{desc[:100]}[/dim]")
+
+    rels = result.get("relationships", [])
+    if rels:
+        console.print(f"\n[bold]Relationships ({len(rels)}):[/bold]")
+        for rel in rels[:10]:
+            console.print(
+                f"  {rel.get('from', '')} [dim]→[/dim] {rel.get('rel', '')} "
+                f"[dim]→[/dim] {rel.get('to', '')}"
+            )
 
 
 if __name__ == "__main__":
