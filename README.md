@@ -66,7 +66,7 @@ The pipeline has three separate processes. `convert` is a one-time GPU step that
 - **Local embeddings** — Ollama with snowflake-arctic-embed2 (1024 dimensions, 8K context)
 - **Dual vector store** — Qdrant (primary) or ChromaDB (Docker-free fallback)
 - **Incremental updates** — SHA-256 hashing skips unchanged files
-- **18 curated collections** — covering .NET, Python, Rust, architecture, security, AI/ML, edge, robotics, and more
+- **17 curated collections** — covering .NET, Python, Rust, architecture, security, AI/ML, edge, robotics, and more
 - **Private collections** — add your own sources via user config without touching the project
 - **Layered configuration** — project `config.toml` deep-merged with `~/.config/grounded-code-mcp/config.toml`
 
