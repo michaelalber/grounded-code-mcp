@@ -319,17 +319,13 @@ A TypeScript extension for [pi.dev](https://pi.dev) that exposes the knowledge b
 
 ### Installation
 
-**Option A — local path (simplest)**
+**Option A — pi install (recommended)**
 
-Add the extension directory to `~/.pi/settings.json`:
-
-```json
-{
-  "extensions": [
-    "/path/to/grounded-code-mcp/skill/extensions"
-  ]
-}
+```bash
+pi install /path/to/grounded-code-mcp/skill/extensions
 ```
+
+This registers the extension and writes the path to `~/.pi/settings.json` automatically. Verify with `pi list`.
 
 **Option B — test before installing**
 
