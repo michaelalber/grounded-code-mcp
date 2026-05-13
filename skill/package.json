@@ -1,0 +1,17 @@
+{
+  "name": "grounded-code-mcp-skill",
+  "version": "1.0.0",
+  "description": "Pi.dev extension — five tools that query the grounded-code-mcp local knowledge base via its JSON CLI",
+  "keywords": ["pi-package"],
+  "license": "MIT",
+  "pi": {
+    "extensions": ["./extensions"]
+  },
+  "peerDependencies": {
+    "typebox": "*"
+  },
+  "devDependencies": {
+    "@mariozechner/pi-coding-agent": "*",
+    "typescript": "^5.0.0"
+  }
+}
