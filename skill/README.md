@@ -65,20 +65,27 @@ How does CQRS relate to clean architecture?
 
 ## Collection reference
 
-Pass the bare suffix (the server prepends `grounded_` automatically):
+Pass the bare suffix (the server prepends `grounded_` automatically). Use `grounded_list_sources()` for the authoritative runtime list.
 
 | Pass as `collection=` | Contents |
 |---|---|
-| `internal` | XP, TDD, CI/CD, OWASP, Diátaxis |
-| `patterns` | GoF, CQRS, DDD, Clean Architecture |
-| `python` | Python 3, FastAPI, Pydantic v2, pytest |
-| `dotnet` | EF Core, DI in .NET, Telerik |
-| `architecture` | DDIA, SRE, 12-Factor, C4 |
-| `edge_ai` | RAG, embeddings, LangSmith, AI agents |
+| `internal` | XP, TDD, CI/CD, DDD, OWASP, NIST AI; technical writing |
+| `patterns` | GoF, CQRS, DDD, Clean Architecture, DI |
+| `architecture` | DDIA, SRE, 12-Factor, AOSA, C4, arc42 |
+| `systems_thinking` | Meadows leverage points, feedback loops, chaos engineering |
+| `ui_ux` | Laws of UX, Nielsen, WCAG 2.2, ARIA, USWDS, GOV.UK |
+| `dotnet` | EF Core in Action, DI in .NET, Telerik UI components |
+| `python` | Python 3, FastAPI, Pydantic v2, pytest, cosmicpython |
 | `databases` | PostgreSQL, SQL, relational theory |
+| `edge_ai` | RAG, embeddings, LLM application design, AI agents |
+| `automation` | PLC, OPC UA, MODBUS, ICS security, Raspberry Pi |
+| `4d_legacy` | 4D platform — reference for 4D → .NET migration |
+| `php` | PHP manual, Laravel 5.5 / 6.x / 12.x |
 | `javascript` | TypeScript, Vue 3, ECMAScript 2024 |
-| `gov` | NIST 800-53/171, Zero Trust, AI RMF |
-| `robotics` | ROS 2, MuJoCo, LeRobot |
+| `gov` | NIST 800-53/171/218, DOE, Zero Trust, AI RMF, CUI |
+| `robotics` | ROS 2, MuJoCo, Isaac Lab, LeRobot, VLA models |
+| `rust` | Rust ownership, async/Tokio, Cargo, Axum |
+| `api_design` | Zalando guidelines, Google AIP, Microsoft REST API guidelines |
 
 ## How it works
 
