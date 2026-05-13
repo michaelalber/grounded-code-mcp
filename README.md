@@ -461,7 +461,7 @@ Returns matched nodes, relationships (triples), linked source slugs, and a plain
 
 ## Collections
 
-18 curated collections covering the domains I work in. Each maps a `sources/` subdirectory to a collection name.
+17 curated collections covering the domains I work in. Each maps a `sources/` subdirectory to a collection name.
 
 | Directory | Collection | What belongs here |
 |-----------|-----------|-------------------|
@@ -469,19 +469,18 @@ Returns matched nodes, relationships (triples), linked source slugs, and a plain
 | `sources/patterns` | `patterns` | Design patterns — GoF, CQRS, Clean Architecture, DI |
 | `sources/architecture` | `architecture` | Software architecture — DDIA, SRE, 12-Factor, C4, arc42 |
 | `sources/systems-thinking` | `systems_thinking` | Systems thinking — Meadows, feedback loops, chaos engineering |
-| `sources/dotnet` | `dotnet` | .NET/C#, ASP.NET Core, Entity Framework, migration guides |
+| `sources/ui-ux` | `ui_ux` | Laws of UX, Nielsen, WCAG 2.2, ARIA, USWDS, GOV.UK |
+| `sources/dotnet` | `dotnet` | .NET/C#, ASP.NET Core, Entity Framework, Telerik UI |
 | `sources/python` | `python` | Python, FastAPI, Pydantic, FastMCP, pytest, cosmicpython |
 | `sources/databases` | `databases` | SQL, PostgreSQL, relational theory |
-| `sources/edge-ai` | `edge_ai` | AI engineering, RAG, embeddings, LLM application design |
-| `sources/industrial-automation` | `automation` | PLC, OPC UA, MODBUS, ICS security, Raspberry Pi |
+| `sources/edge-ai` | `edge_ai` | AI engineering, RAG, embeddings, LLM application design, AI agents |
+| `sources/automation` | `automation` | PLC, OPC UA, MODBUS, ICS security, Raspberry Pi |
 | `sources/4d-legacy` | `4d_legacy` | 4D platform — source reference for 4D → .NET migration |
 | `sources/php` | `php` | PHP manual, Laravel (5.5 / 6.x / 12.x) |
 | `sources/javascript` | `javascript` | JS/TS, Vue 2/3, jQuery, ECMAScript spec |
-| `sources/ui-ux` | `ui_ux` | Laws of UX, Nielsen, WCAG 2.2, ARIA, USWDS, GOV.UK |
 | `sources/gov` | `gov` | NIST 800-53/171/218, DOE, Zero Trust, AI RMF, CUI |
 | `sources/robotics` | `robotics` | ROS 2, MuJoCo, Isaac Lab, LeRobot, VLA models |
 | `sources/rust` | `rust` | Rust ownership, async/Tokio, Cargo, error handling, Axum |
-| `sources/langsmith` | `langsmith` | LangSmith — tracing, evaluation, datasets, prompt engineering |
 | `sources/api-design` | `api_design` | REST API design — Zalando, Google AIP, Microsoft guidelines |
 
 Add private collections in `~/.config/grounded-code-mcp/config.toml` — they merge with the project list, not replace it.
