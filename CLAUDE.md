@@ -88,6 +88,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | 2026-05 | Removed `langchain` and `langgraph` collections | Well-covered by model training data; static snapshots create drift with fast-moving docs. |
 | 2026-05 | Removed `langsmith` collection; LangSmith docs live in `edge_ai` | No `sources/langsmith/` directory exists — docs ingested under `sources/edge-ai/`. Orphan collection deleted. |
 | 2026-05 | Removed `rust` collection (empty) | No sources ingested yet; collection deleted until Rust sources are added. |
+| 2026-05 | Re-added `rust` to `config.toml` | Sources pending (see Open Loops); collection entry restored so ingest works once sources are committed. |
 
 ---
 
@@ -112,6 +113,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `mcp__grounded-code-mcp__search_code_examples` — find code examples by query and language
 - `mcp__grounded-code-mcp__list_sources` — list ingested source documents
 - `mcp__grounded-code-mcp__get_source_info` — get metadata for a specific source document
+- `mcp__grounded-code-mcp__query_graph` — traverse the concept graph for relationships around a concept
 
 ---
 
