@@ -482,9 +482,8 @@ def scan_directory(
             continue
         # Skip *.*.md sidecar files only when their parent binary exists;
         # if the binary is absent, ingest the sidecar directly as markdown.
-        if path.suffix.lower() == ".md" and "." in path.stem:
-            if path.with_suffix("").exists():
-                continue
+        if path.suffix.lower() == ".md" and "." in path.stem and path.with_suffix("").exists():
+            continue
         paths.append(path)
 
     return sorted(paths)
