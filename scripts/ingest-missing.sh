@@ -144,3 +144,9 @@ for src_dir in "${INGEST_DIRS[@]}"; do
 done
 
 echo "All ingests complete."
+
+if [[ "$FORCE" == "true" ]]; then
+  echo "Running build-graph after force ingest ..."
+  grounded-code-mcp build-graph 2>&1
+  echo "build-graph complete."
+fi
