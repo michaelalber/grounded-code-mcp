@@ -189,10 +189,41 @@ grounded-code-mcp status
 
 ### Search from the CLI
 
+All search commands accept `--json` to emit machine-readable output — useful for shell scripts and AI agents that can't use MCP.
+
+**Prose search:**
+
 ```bash
 grounded-code-mcp search "async HTTP request"
 grounded-code-mcp search "dependency injection" --collection patterns
 grounded-code-mcp search "error handling" -n 10 --min-score 0.4
+grounded-code-mcp search "CQRS" --collection architecture --json   # JSON output
+```
+
+**Code example search:**
+
+```bash
+grounded-code-mcp search-code "async context manager" --language python
+grounded-code-mcp search-code "repository pattern" --language csharp -n 3 --json
+```
+
+**List and inspect sources:**
+
+```bash
+grounded-code-mcp list-sources                         # all collections
+grounded-code-mcp list-sources --collection python     # one collection
+grounded-code-mcp list-sources --json                  # JSON output
+
+grounded-code-mcp source-info sources/python/cosmicpython.pdf
+grounded-code-mcp source-info sources/python/cosmicpython.pdf --json
+```
+
+**Query the concept graph:**
+
+```bash
+grounded-code-mcp query-graph CQRS
+grounded-code-mcp query-graph "clean architecture" --depth 2 --domain patterns
+grounded-code-mcp query-graph CQRS --json
 ```
 
 ### Start the MCP server
@@ -224,6 +255,8 @@ claude mcp add --transport stdio --scope user grounded-code-mcp -- grounded-code
   }
 }
 ```
+
+**Pi.dev** — see [Pi.dev extension](#pidev-extension) below.
 
 ---
 
@@ -277,6 +310,66 @@ get_source_info(
     source_path: str,  # path returned by list_sources
 ) -> dict  # title, type, chunks, ingestion date
 ```
+
+---
+
+## Pi.dev Extension
+
+A TypeScript extension for [pi.dev](https://pi.dev) that exposes the knowledge base as five searchable tools. Each tool runs `grounded-code-mcp <subcommand> --json` as a subprocess and returns parsed JSON to pi's context — no MCP required, fully local.
+
+### Installation
+
+**Option A — local path (simplest)**
+
+Add the extension directory to `~/.pi/settings.json`:
+
+```json
+{
+  "extensions": [
+    "/path/to/grounded-code-mcp/skill/extensions"
+  ]
+}
+```
+
+**Option B — test before installing**
+
+```bash
+pi -e /path/to/grounded-code-mcp/skill/extensions/index.ts
+```
+
+**Option C — git package (from inside pi)**
+
+```
+/install git:codeberg.org/michaelkalber/grounded-code-mcp?path=skill
+```
+
+### Tools
+
+| Tool | Description |
+|------|-------------|
+| `grounded_search` | Vector search across all (or one) collection — returns prose chunks with score and source path |
+| `grounded_search_code` | Code-block-only search with optional language filter |
+| `grounded_list_sources` | Lists every ingested document — use to discover what's available |
+| `grounded_source_info` | Metadata for a specific source: chunk count, SHA-256, ingestion date |
+| `grounded_query_graph` | Graph traversal — finds concept relationships and linked sources |
+
+### Example usage in pi
+
+```
+Search for FastAPI dependency injection patterns
+→ grounded_search(query="dependency injection", collection="python")
+
+Find Python async context manager examples
+→ grounded_search_code(query="async context manager", language="python")
+
+What documentation is indexed?
+→ grounded_list_sources()
+
+How does CQRS relate to clean architecture?
+→ grounded_query_graph(concept="CQRS", depth=2)
+```
+
+Pass the bare collection suffix — the server prepends `grounded_` automatically.
 
 ---
 
