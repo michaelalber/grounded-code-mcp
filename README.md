@@ -554,7 +554,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the collection workflow and dependenc
 Software engineer working across .NET, Python, Rust, edge AI, and federal security domains. I build tools that make AI-assisted development more grounded, more opinionated, and more aligned with engineering standards that matter.
 
 Related projects:
-- [ai-toolkit](https://github.com/michaelalber/ai-toolkit) — skills, agents, and slash commands for Claude Code, OpenCode, and Pi
+- [ai-toolkit](https://codeberg.org/michaelkalber/ai-toolkit) — 103 skills, 49 agents, and 22 slash commands for Claude Code, OpenCode, and Pi
+- [pi-packages](https://codeberg.org/michaelkalber/pi-packages) — domain-specific Pi harnesses with hardware routing, RAG integration, and project-type auto-detection for local Ollama inference
 
 ---
 
