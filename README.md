@@ -471,7 +471,6 @@ Returns matched nodes, relationships (triples), linked source slugs, and a plain
 | `sources/databases` | `databases` | SQL, PostgreSQL, relational theory |
 | `sources/edge-ai` | `edge_ai` | AI engineering, RAG, embeddings, LLM application design, AI agents |
 | `sources/automation` | `automation` | PLC, OPC UA, MODBUS, ICS security, Raspberry Pi |
-| `sources/4d-legacy` | `4d_legacy` | 4D platform — source reference for 4D → .NET migration |
 | `sources/php` | `php` | PHP manual, Laravel (5.5 / 6.x / 12.x) |
 | `sources/javascript` | `javascript` | JS/TS, Vue 2/3, jQuery, ECMAScript spec |
 | `sources/gov` | `gov` | NIST 800-53/171/218, DOE, Zero Trust, AI RMF, CUI |
