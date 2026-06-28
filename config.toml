@@ -99,7 +99,6 @@ collection_prefix = "grounded_"
 "sources/databases"            = "databases"
 "sources/edge-ai"              = "edge_ai"
 "sources/automation"            = "automation"
-"sources/4d-legacy"            = "4d_legacy"
 "sources/php"                  = "php"
 "sources/javascript"           = "javascript"
 "sources/gov"                  = "gov"                  # NIST, DOE/NNSA orders, EAR/ITAR, 10 CFR 707/710/712 (HRP)
