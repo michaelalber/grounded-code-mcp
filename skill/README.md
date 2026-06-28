@@ -79,7 +79,6 @@ Pass the bare suffix (the server prepends `grounded_` automatically). Use `groun
 | `databases` | PostgreSQL, SQL, relational theory |
 | `edge_ai` | RAG, embeddings, LLM application design, AI agents |
 | `automation` | PLC, OPC UA, MODBUS, ICS security, Raspberry Pi |
-| `4d_legacy` | 4D platform — reference for 4D → .NET migration |
 | `php` | PHP manual, Laravel 5.5 / 6.x / 12.x |
 | `javascript` | TypeScript, Vue 3, ECMAScript 2024 |
 | `gov` | NIST 800-53/171/218, DOE, Zero Trust, AI RMF, CUI |
