@@ -89,6 +89,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | 2026-05 | Removed `langsmith` collection; LangSmith docs live in `edge_ai` | No `sources/langsmith/` directory exists — docs ingested under `sources/edge-ai/`. Orphan collection deleted. |
 | 2026-05 | Removed `rust` collection (empty) | No sources ingested yet; collection deleted until Rust sources are added. |
 | 2026-05 | Re-added `rust` to `config.toml` | Sources pending (see Open Loops); collection entry restored so ingest works once sources are committed. |
+| 2026-06 | Removed `4d_legacy` collection | 4D → .NET migration is complete; no active need for 4D reference docs. Qdrant collection dropped, `sources/4d-legacy/` removed. |
 
 ---
 
