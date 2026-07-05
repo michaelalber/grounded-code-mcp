@@ -48,7 +48,7 @@ Evals answer: *"Is the output actually good?"* — not *"does it look reasonable
 ### Test Case 3: New MCP Tool or Tool Enhancement
 
 - **Input / Prompt:** Add a new parameter or tool to `server.py` (e.g., a `min_score` filter on `search_code_examples`)
-- **Known-Good Output:** New parameter documented in the function signature and docstring; unit test covers the new behaviour; existing MCP tool integration is not broken; `pipx install . --force` followed by a live call to the tool produces the expected filtered output
+- **Known-Good Output:** New parameter documented in the function signature and docstring; unit test covers the new behaviour; existing MCP tool integration is not broken; `pipx install ".[all]" --force` followed by a live call to the tool produces the expected filtered output
 - **Pass Criteria:**
   - [ ] Failing test written before production code
   - [ ] All tests pass: `.venv/bin/pytest`
@@ -72,7 +72,7 @@ Evals answer: *"Is the output actually good?"* — not *"does it look reasonable
 
 ## CI Gate
 
-- **Install:** `pip install -e ".[dev]"` — zero errors
+- **Install:** `pip install -e ".[all,dev]"` — zero errors
 - **Tests:** `.venv/bin/pytest --cov=src/grounded_code_mcp --cov-report=term-missing` — all 276 pass
 - **Coverage:** ≥ 80% business logic, ≥ 95% security-critical (file validation paths)
 - **Lint:** `.venv/bin/ruff check src/ tests/` — clean

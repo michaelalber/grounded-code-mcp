@@ -23,22 +23,42 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
 ]
 
+# Light core: the reusable RAG engine (parser/chunking/embeddings/vectorstore/config)
+# imports only these. Heavy/role-specific deps live in the extras below so library
+# consumers (e.g. second-brain) can depend on the core without pulling Docling/fastmcp/etc.
+# Grounded's own tool install is `[all]` (see extras).
 dependencies = [
-    "fastmcp>=3.2.0",
-    "docling>=2.70.0",
-    "pypdf>=4.0",
     "qdrant-client",
-    "chromadb>=1.0.0",
     "ollama",
     "pydantic>=2.0",
-    "click>=8.0",
-    "rich>=13.0",
     "tomli; python_version < '3.11'",
-    "pypdf>=4.0",
-    "networkx>=3.2",
 ]
 
 [project.optional-dependencies]
+# Binary-format document parsing (ingest role) — Docling is imported lazily.
+parse = [
+    "docling>=2.70.0",
+    "pypdf>=4.0",
+]
+# MCP server + CLI (grounded's own product role).
+serve = [
+    "fastmcp>=3.2.0",
+    "click>=8.0",
+    "rich>=13.0",
+]
+# Concept-graph force path.
+graph = [
+    "networkx>=3.2",
+]
+# ChromaDB vector-store fallback (Docker-free). Qdrant is the default; ChromaStore
+# code stays in vectorstore.py but its dependency is opt-in.
+chroma = [
+    "chromadb>=1.0.0",
+]
+# Full tool install — grounded's own runtime needs all roles.
+all = [
+    "grounded-code-mcp[parse,serve,graph,chroma]",
+]
 dev = [
     "pytest>=8.0",
     "pytest-asyncio",

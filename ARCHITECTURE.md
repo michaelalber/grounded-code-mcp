@@ -158,7 +158,7 @@ New code: `src/graph/__init__.py`, `src/graph/graph_store.py`, `src/graph/graph_
 
 Rationale for `src/graph/` (not project-root `graph/`):
 - Consistent with existing convention (`src/grounded_code_mcp/`)
-- Works with the existing editable install (`pip install -e ".[dev]"`) — `src/` is on `sys.path`
+- Works with the existing editable install (`pip install -e ".[all,dev]"`) — `src/` is on `sys.path`
 - `python -m graph.graph_builder` works out of the box post-editable install
 
 Required change: add `"src/graph"` to `[tool.hatch.build.targets.wheel].packages` in `pyproject.toml`.

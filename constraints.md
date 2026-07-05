@@ -9,7 +9,7 @@
 - Write three verifiable acceptance criteria before delegating any significant subtask.
 - Confirm understanding before executing any irreversible action (delete, deploy, push).
 - Run `.venv/bin/pytest` before every commit and verify all tests pass.
-- Run `pipx install . --force` after any code change before testing CLI behaviour.
+- Run `pipx install ".[all]" --force` after any code change before testing CLI behaviour.
 - Run ingest jobs **one collection at a time** — never in parallel.
 - Add a `# VERIFY:` comment rather than guess when uncertain about a function signature, API, or behaviour.
 
