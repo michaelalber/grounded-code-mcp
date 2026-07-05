@@ -96,7 +96,7 @@ ChromaDB is supported as a Docker-free fallback (`provider = "chromadb"` in conf
 **Production (pipx — recommended):**
 
 ```bash
-pipx install git+https://github.com/michaelalber/grounded-code-mcp.git
+pipx install "grounded-code-mcp[all] @ git+https://github.com/michaelalber/grounded-code-mcp.git"
 ```
 
 **Development:**
@@ -104,7 +104,7 @@ pipx install git+https://github.com/michaelalber/grounded-code-mcp.git
 ```bash
 git clone https://github.com/michaelalber/grounded-code-mcp.git
 cd grounded-code-mcp
-python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
+python3 -m venv .venv && .venv/bin/pip install -e ".[all,dev]"
 ```
 
 Dev tools (`pytest`, `ruff`, `mypy`) run from `.venv/bin/`. Use the pipx binary for all runtime commands.
@@ -408,7 +408,7 @@ Each run is idempotent: nodes for a source are replaced before new ones are inse
 
 ## Graph RAG — CLI Reference
 
-All commands use the `grounded-code-mcp` binary installed via `pipx`. After any code change, reinstall with `pipx install . --force`.
+All commands use the `grounded-code-mcp` binary installed via `pipx`. After any code change, reinstall with `pipx install ".[all]" --force`.
 
 ```bash
 # Full reingest — rebuilds Qdrant vectors and concept graph for all sources

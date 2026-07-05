@@ -47,7 +47,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   - `scripts/` — utility scripts (doc downloaders)
   - `.github/workflows/` — CI definitions
 - **Non-obvious constraints:**
-  - CLI is installed via **pipx**, not `.venv`. After any code change run `pipx install . --force`.
+  - CLI is installed via **pipx**, not `.venv`. After any code change run `pipx install ".[all]" --force`.
   - Ollama must be running with `snowflake-arctic-embed2` pulled before ingest or search.
   - Qdrant must be running (Docker Compose or system service) for vector operations.
   - Ingest jobs must run **sequentially** — parallel ingest causes OOM. Never run two collections simultaneously.
@@ -138,12 +138,12 @@ grounded-code-mcp ingest ...
 grounded-code-mcp serve --debug
 ```
 
-After any code change, reinstall: `pipx install . --force`
+After any code change, reinstall: `pipx install ".[all]" --force`
 
 Dev tools live in `.venv/` — **do not** use `.venv/bin/grounded-code-mcp`:
 
 ```bash
-python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
+python3 -m venv .venv && .venv/bin/pip install -e ".[all,dev]"
 
 .venv/bin/pytest
 .venv/bin/pytest --cov=grounded_code_mcp

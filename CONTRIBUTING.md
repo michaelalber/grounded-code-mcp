@@ -88,7 +88,7 @@ Team members must coordinate — mixed embeddings from different models are not 
 ```bash
 git clone https://github.com/michaelalber/grounded-code-mcp.git
 cd grounded-code-mcp
-python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
+python3 -m venv .venv && .venv/bin/pip install -e ".[all,dev]"
 ```
 
 Run tests:
