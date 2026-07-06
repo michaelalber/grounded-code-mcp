@@ -79,3 +79,6 @@ uv.lock
 graph/concept_graph.json
 thoughts/shared/progress/
 thoughts/shared/sessions/
+
+# Machine-specific deployment details (hostnames, IPs, paths) — never commit
+DEPLOYMENT.local.md

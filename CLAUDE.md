@@ -90,6 +90,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | 2026-05 | Removed `rust` collection (empty) | No sources ingested yet; collection deleted until Rust sources are added. |
 | 2026-05 | Re-added `rust` to `config.toml` | Sources pending (see Open Loops); collection entry restored so ingest works once sources are committed. |
 | 2026-06 | Removed `4d_legacy` collection | 4D → .NET migration is complete; no active need for 4D reference docs. Qdrant collection dropped, `sources/4d-legacy/` removed. |
+| 2026-07 | Qdrant runs as a native macOS binary under a system LaunchDaemon, not Docker | Headless Mac mini reboots with nobody logged into a GUI session; Docker Desktop's autostart depends on a LaunchAgent, which only fires in a logged-in GUI session. LaunchDaemons (system domain) start at boot regardless — mirrors the existing `com.ollama.server.plist` pattern. |
+| 2026-07 | grounded-code-mcp `serve` deployed from `~/grounded-code-mcp-server`, a separate clone from the dev checkout at `~/Documents/AppDev/grounded-code-mcp` | macOS TCC blocks headless LaunchDaemons from accessing `~/Documents` (a protected folder) — there is no GUI session to grant consent, so `os.getcwd()` inside the daemon raised `PermissionError`. The deploy clone lives outside any TCC-protected folder and points `origin` at the real Codeberg remote. |
 
 ---
 
@@ -97,6 +99,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - [ ] Untracked source directories in repo root (`async-book/`, `burn/`, `nomicon/`, `patterns/`, `rust-by-example/`) — pending decision on ingesting as Rust sub-collections
 - [ ] `w3c-trace-context.html` untracked — pending ingestion target decision
+- [ ] Populate `~/grounded-code-mcp-server/sources/*` on the deployment host with the real document corpus and run initial `ingest` — the KB is currently empty on the deployed instance
+- [ ] Consider a DHCP reservation / static IP for the deployment host — see `DEPLOYMENT.local.md` (gitignored); the grounded-code-mcp LaunchDaemon plist hardcodes an IP address
 
 ---
 
@@ -151,6 +155,28 @@ python3 -m venv .venv && .venv/bin/pip install -e ".[all,dev]"
 .venv/bin/mypy src/
 .venv/bin/bandit -r src/ -c pyproject.toml
 ```
+
+---
+
+## Deployment (headless LAN server)
+
+grounded-code-mcp can run as a persistent, LAN-reachable service on a dedicated always-on machine instead of purely local dev use. This repo is public — **actual hostnames, IPs, and this-machine-specific paths are never committed here.** They live in `DEPLOYMENT.local.md` (gitignored) on each deployment host, following the same rule this project already applies to `config.toml` (machine-specific values go in the user override, never the committed file).
+
+Principles that generalize across any such deployment:
+
+- **Qdrant on a headless host:** run it as a native OS binary under a system-level service (e.g. a macOS LaunchDaemon, not Docker Desktop) — GUI-dependent autostart mechanisms (Docker Desktop's LaunchAgent, `brew services` at the user level) never fire on a box nobody logs into. Bind to loopback only; the MCP server is the only thing that needs to reach it, and it runs on the same host.
+- **Deploy clone location:** on macOS, keep the deployed checkout outside any TCC-protected folder (`~/Documents`, `~/Desktop`, `~/Downloads`, etc.). A headless system daemon has no GUI session to grant TCC consent, so `os.getcwd()` inside a protected folder raises `PermissionError` at startup. If the dev checkout lives inside one of those folders, deploy from a separate clone elsewhere and point its `origin` at the real remote (a local-path `git clone` otherwise sets `origin` to the source checkout, which breaks if that checkout is ever removed).
+- **No authentication** on the HTTP transport (`server.py` logs this explicitly whenever it's bound off-loopback) — only bind non-loopback on a network you trust, and never forward the port to the public internet without adding an auth layer in front of it.
+
+**Deploying a code change** (see `DEPLOYMENT.local.md` for the real path and LaunchDaemon label):
+```bash
+cd <deploy-clone-path>
+git pull
+pipx install ".[all]" --force
+sudo launchctl kickstart -k system/<launchdaemon-label>
+```
+
+**Connecting a client:** `claude mcp add --transport http --scope user grounded-code-mcp <real-url-from-DEPLOYMENT.local.md>`
 
 ---
 
