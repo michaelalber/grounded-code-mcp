@@ -99,7 +99,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - [ ] Untracked source directories in repo root (`async-book/`, `burn/`, `nomicon/`, `patterns/`, `rust-by-example/`) — pending decision on ingesting as Rust sub-collections
 - [ ] `w3c-trace-context.html` untracked — pending ingestion target decision
-- [ ] Populate `~/grounded-code-mcp-server/sources/*` on the deployment host with the real document corpus and run initial `ingest` — the KB is currently empty on the deployed instance
+- [ ] Run initial `ingest` on the deployment host — `sources/*` is now populated via `scripts/sync-sources.sh`, but the KB is still empty since ingest has never been run here (no `.grounded-code-mcp/manifest.json` yet)
 - [ ] Consider a DHCP reservation / static IP for the deployment host — see `DEPLOYMENT.local.md` (gitignored); the grounded-code-mcp LaunchDaemon plist hardcodes an IP address
 
 ---
