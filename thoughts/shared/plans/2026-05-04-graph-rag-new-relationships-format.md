@@ -2,7 +2,8 @@
 
 **Created:** 2026-05-04
 **Research:** `thoughts/shared/research/2026-05-04-graph-rag-grounded-code-mcp.md`
-**Status:** approved
+**Status:** implemented — merged to `main` (Phase 1 GREEN `04923f0`, Phase 2 `e649059`/`afaa43f`). Branch since deleted.
+**Superseded in part:** the 10-verb `VALID_RELATIONS` specced below was later expanded to 95 verbs in `b097744`; treat that commit as the authoritative vocabulary, not this plan.
 **Ticket:** N/A
 **Branch:** `feat/graph-rag-new-relationships-format`
 **Git base:** `399b423`
