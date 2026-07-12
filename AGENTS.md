@@ -83,9 +83,15 @@
 | 2025-02 | HTTP transport binds `127.0.0.1` only | Security by default — never expose to network without explicit override |
 | 2025-02 | Separate RED / GREEN / REFACTOR commits | Verifiable TDD evidence on feature branches; RED commits never pushed to `main` |
 | 2026-04 | Removed Microsoft Learn PDF exports and Writing Style Guide from `dotnet` and `internal` collections | Live equivalents covered by the Microsoft Learn MCP; keeping static snapshots is redundant and creates drift |
+| 2026-04 | Markdown sidecars (`foo.pdf.md`) + GPU-accelerated `convert` command | Decouples expensive Docling conversion (GPU) from ingest (CPU); sidecars let `ingest` use the fast plaintext path. `flash-attn` kept out of `pyproject.toml` — manual install only, Ampere+ GPU required. |
 | 2026-05 | Removed `langchain` and `langgraph` collections | Well-covered by model training data; static snapshots create drift with fast-moving docs. |
 | 2026-05 | Removed `langsmith` collection; LangSmith docs live in `edge_ai` | No `sources/langsmith/` directory exists — docs ingested under `sources/edge-ai/`. Orphan collection deleted. |
 | 2026-05 | Removed `rust` collection (empty) | No sources ingested yet; collection deleted until Rust sources are added. |
+| 2026-05 | Re-added `rust` to `config.toml` | Sources pending (see Open Loops); collection entry restored so ingest works once sources are committed. |
+| 2026-06 | Removed `4d_legacy` collection | 4D → .NET migration is complete; no active need for 4D reference docs. Qdrant collection dropped, `sources/4d-legacy/` removed. |
+| 2026-07 | Qdrant runs as a native macOS binary under a system LaunchDaemon, not Docker | Headless Mac mini reboots with nobody logged into a GUI session; Docker Desktop's autostart depends on a LaunchAgent, which only fires in a logged-in GUI session. LaunchDaemons (system domain) start at boot regardless — mirrors the existing `com.ollama.server.plist` pattern. |
+| 2026-07 | grounded-code-mcp `serve` deployed from `~/grounded-code-mcp-server`, a separate clone from the dev checkout at `~/Documents/AppDev/grounded-code-mcp` | macOS TCC blocks headless LaunchDaemons from accessing `~/Documents` (a protected folder) — there is no GUI session to grant consent, so `os.getcwd()` inside the daemon raised `PermissionError`. The deploy clone lives outside any TCC-protected folder and points `origin` at the real Codeberg remote. |
+| 2026-07 | Added `projects` collection — code2md-enriched dumps of own codebases | Grounds AI sessions in the project's own source (self-referential RAG). Seeded with `sources/projects/grounded_code_mcp/` from the code2md enrichment tool; `config.toml` maps `sources/projects` → `projects`. Not yet ingested on the deploy host. |
 
 ---
 

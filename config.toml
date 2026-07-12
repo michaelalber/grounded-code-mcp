@@ -109,3 +109,4 @@ collection_prefix = "grounded_"
 "sources/robotics"             = "robotics"
 "sources/rust"                 = "rust"
 "sources/api-design"           = "api_design"
+"sources/projects"             = "projects"             # code2md-enriched dumps of own codebases (grounded_code_mcp, ...)
