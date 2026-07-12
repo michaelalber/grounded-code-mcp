@@ -46,6 +46,9 @@ dmypy.json
 CLAUDE.local.md
 AGENTS.local.md
 
+# Machine-specific sync config (host/user for scripts/sync-sources.sh)
+scripts/.sync-sources.env
+
 # OS
 .DS_Store
 Thumbs.db
