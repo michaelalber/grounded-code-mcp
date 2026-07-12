@@ -85,7 +85,10 @@ fi
 # Build ordered list of dirs to ingest
 # ---------------------------------------------------------------------------
 FORCE_FLAG="$FORCE"
-mapfile -t INGEST_DIRS < <("$PYTHON" - "$ANALYSIS_FILE" "$FORCE_FLAG" << 'PYEOF'
+INGEST_DIRS=()
+while IFS= read -r line; do
+  [[ -n "$line" ]] && INGEST_DIRS+=("$line")
+done < <("$PYTHON" - "$ANALYSIS_FILE" "$FORCE_FLAG" << 'PYEOF'
 import json, sys
 with open(sys.argv[1]) as f:
     data = json.load(f)
