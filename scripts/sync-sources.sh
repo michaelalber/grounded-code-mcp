@@ -16,6 +16,11 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(dirname "$SCRIPT_DIR")"
 
+# Load machine-specific config if present (gitignored — see header).
+ENV_FILE="$SCRIPT_DIR/.sync-sources.env"
+# shellcheck source=/dev/null
+[[ -f "$ENV_FILE" ]] && source "$ENV_FILE"
+
 REMOTE_USER="${GKB_REMOTE_USER:-$USER}"
 REMOTE_HOST="${GKB_REMOTE_HOST:?set GKB_REMOTE_HOST to your knowledge-base host (see header)}"
 REMOTE_PATH="${GKB_REMOTE_PATH:-~/AppDev/michaelalber/codeberg/grounded-code-mcp/sources/}"
