@@ -42,6 +42,10 @@ dmypy.json
 .claude/
 .opencode/
 
+# Machine-specific agent instructions (deployment-local, never committed)
+CLAUDE.local.md
+AGENTS.local.md
+
 # OS
 .DS_Store
 Thumbs.db

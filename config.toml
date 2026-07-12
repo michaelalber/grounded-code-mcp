@@ -30,6 +30,10 @@ exclude_filenames = [
   "CODE_OF_CONDUCT.md",
   "BUILD.md",
   "CODEOWNERS",
+  # Graph feed only: parsed into the concept graph by graph_builder's own
+  # rglob, but excluded here so its structured triples are never embedded as
+  # a vector chunk (they would be retrieval noise).
+  "RELATIONSHIPS.md",
 ]
 # Glob patterns matched against filenames to skip during directory scan.
 exclude_patterns = [

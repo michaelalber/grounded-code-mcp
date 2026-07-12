@@ -318,3 +318,17 @@ class TestDoclingSettings:
         config_file.write_text("[docling]\nenable_ocr = false\n")
         settings = Settings.from_toml(config_file)
         assert settings.docling.enable_ocr is False
+
+
+class TestCommittedConfigToml:
+    """Assertions about the shipped repo-root ``config.toml``."""
+
+    def test_relationships_md_excluded_from_embedding(self) -> None:
+        """RELATIONSHIPS.md must be skipped by the scan so it feeds the concept
+        graph (via graph_builder's own rglob) but is never embedded as a vector
+        chunk — structured triples are retrieval noise. See enrichment-roadmap
+        Phase 3, slice 6.
+        """
+        repo_config = Path(__file__).parent.parent / "config.toml"
+        settings = Settings.from_toml(repo_config)
+        assert "RELATIONSHIPS.md" in settings.knowledge_base.exclude_filenames
