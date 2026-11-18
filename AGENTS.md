@@ -97,8 +97,9 @@
 
 ## Open Loops
 
-- [ ] Untracked source directories in repo root (`async-book/`, `burn/`, `nomicon/`, `patterns/`, `rust-by-example/`) — pending decision on ingesting as Rust sub-collections
-- [ ] `w3c-trace-context.html` untracked — pending ingestion target decision
+- [x] ~~Untracked source directories in repo root (`async-book/`, ...)~~ — resolved 2026-11: those paths no longer exist in this checkout (verified: clean `git status`, absent from all refs); loop was stale. If Rust sources are wanted later, add them under `sources/rust/` and ingest.
+- [x] ~~`w3c-trace-context.html` untracked~~ — same, file does not exist here anymore.
+- [ ] `projects` collection seeded but not yet ingested on the deploy host (2026-07 decision above).
 
 ---
 
